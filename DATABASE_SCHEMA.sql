@@ -79,3 +79,41 @@ CREATE POLICY "Courses are viewable by approved users" ON public.courses FOR SEL
     AND up.company_id = courses.company_id 
     AND up.status = 'approved'
   ) OR auth.uid() = trainer_id);
+
+-- Temporäre Policy für den Signup-Flow: anonymen Insert eines pending-Kundenprofils erlauben
+CREATE POLICY "Public can insert pending customer profiles for signup" ON public.user_profiles FOR INSERT
+  WITH CHECK (
+    role = 'customer'
+    AND status = 'pending'
+    AND first_name IS NOT NULL
+    AND last_name IS NOT NULL
+    AND company_id IS NOT NULL
+  );
+
+CREATE POLICY "Users can update their own profile or owner can update same company" ON public.user_profiles FOR UPDATE
+  USING (
+    auth.uid() = user_id OR EXISTS (
+      SELECT 1 FROM public.user_profiles up
+      WHERE up.user_id = auth.uid()
+        AND up.role = 'owner'
+        AND up.company_id = user_profiles.company_id
+    )
+  )
+  WITH CHECK (
+    auth.uid() = user_id OR EXISTS (
+      SELECT 1 FROM public.user_profiles up
+      WHERE up.user_id = auth.uid()
+        AND up.role = 'owner'
+        AND up.company_id = user_profiles.company_id
+    )
+  );
+
+GRANT SELECT ON public.companies TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_profiles TO anon;
+GRANT SELECT ON public.courses TO anon;
+GRANT SELECT ON public.course_enrollments TO anon;
+
+GRANT SELECT ON public.companies TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_profiles TO authenticated;
+GRANT SELECT ON public.courses TO authenticated;
+GRANT SELECT ON public.course_enrollments TO authenticated;

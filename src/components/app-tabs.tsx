@@ -8,8 +8,8 @@ export default function AppTabs() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
   const { userProfile } = useAuth();
-
-  const isOwner = userProfile?.role === 'owner';
+  const { isDevAdmin } = useAuth();
+  const isOwner = userProfile?.role === 'owner' || !!isDevAdmin;
 
   return (
     <NativeTabs

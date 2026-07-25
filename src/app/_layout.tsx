@@ -3,6 +3,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme, View, ActivityIndicator } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import DevSignOut from '@/components/dev-signout';
+import DevAdminToggle from '@/components/dev-admin-toggle';
 import AppTabs from '@/components/app-tabs';
 import { AuthProvider, useAuth } from '@/context/auth-context';
 import PendingScreen from './pending';
@@ -41,6 +43,8 @@ function RootLayoutNav() {
         // App Screens (Tabs + andere Screens) - nur für approved Users
         <>
           <AnimatedSplashOverlay />
+          <DevSignOut />
+          <DevAdminToggle onChange={() => { /* noop - AuthContext reads storage */ }} />
           <AppTabs />
         </>
       )}

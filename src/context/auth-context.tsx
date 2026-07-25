@@ -1,16 +1,24 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session } from '@supabase/supabase-js';
-import { supabase, UserProfile } from './supabase';
+import { supabase, UserProfile } from '../lib/supabase';
 
 type AuthContextType = {
   session: Session | null;
   loading: boolean;
   userProfile: UserProfile | null;
-  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  signUp: (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+    companyId: string
+  ) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   approveUser: (userId: string) => Promise<void>;
   rejectUser: (userId: string) => Promise<void>;
+  isDevAdmin: boolean;
+  setDevAdmin: (v: boolean) => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,6 +27,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isDevAdmin, setIsDevAdmin] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('dev_is_admin') === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
     // Initiale Session laden
@@ -59,9 +74,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .from('user_profiles')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        console.warn('No user profile found for user:', userId);
+        setUserProfile(null);
+        return;
+      }
+
       setUserProfile(data);
     } catch (err) {
       console.error('Error fetching user profile:', err);
@@ -69,7 +90,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+    companyId: string
+  ) => {
     try {
       // 1. Benutzer in Auth erstellen
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -80,11 +107,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (authError) throw authError;
       if (!authData.user) throw new Error('Sign up failed');
 
-      // 2. User Profile mit "pending" Status erstellen
-      // Hinweis: Hier nehmen wir an, dass es eine Standard-Company gibt (id: default-company)
+      // 2. User Profile mit "pending" Status und gewählter Filiale erstellen
       const { error: profileError } = await supabase.from('user_profiles').insert({
         user_id: authData.user.id,
-        company_id: 'default-company', // Später dynamisch
+        company_id: companyId,
         first_name: firstName,
         last_name: lastName,
         role: 'customer',
@@ -120,6 +146,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.error('Sign out error:', err);
       throw err;
     }
+  };
+
+  const setDevAdmin = (v: boolean) => {
+    try {
+      localStorage.setItem('dev_is_admin', v ? 'true' : 'false');
+    } catch {}
+    setIsDevAdmin(v);
   };
 
   const approveUser = async (userId: string) => {
@@ -169,6 +202,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         signOut,
         approveUser,
         rejectUser,
+        isDevAdmin,
+        setDevAdmin,
       }}
     >
       {children}

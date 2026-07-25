@@ -13,7 +13,7 @@ import { useAuth } from '@/context/auth-context';
 import { supabase, UserProfile } from '@/lib/supabase';
 
 export default function AdminPanelScreen() {
-  const { userProfile, approveUser, rejectUser } = useAuth();
+  const { userProfile, approveUser, rejectUser, isDevAdmin } = useAuth();
   const [pendingUsers, setPendingUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -81,7 +81,7 @@ export default function AdminPanelScreen() {
     ]);
   };
 
-  if (!userProfile || userProfile.role !== 'owner') {
+  if (!userProfile || (userProfile.role !== 'owner' && !isDevAdmin)) {
     return (
       <View style={styles.container}>
         <Text style={styles.title}>Zugriff verweigert</Text>

@@ -12,12 +12,15 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   );
 }
 
+const storage = Platform.OS !== 'web' ? AsyncStorage : undefined;
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    storage: AsyncStorage,
+    // Use AsyncStorage on native, let supabase-js default to localStorage on web
+    storage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: Platform.OS === 'web',
+    detectSessionInUrl: typeof window !== 'undefined' && Platform.OS === 'web',
   },
 });
 
