@@ -23,6 +23,7 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
+    "sdkVersion": "54.0.0",
     "plugins": [
       "expo-router",
       [

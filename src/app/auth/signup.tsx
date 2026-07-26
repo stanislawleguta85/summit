@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   TextInput,
@@ -11,6 +11,13 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/auth-context';
+import { supabase } from '@/lib/supabase';
+
+type Company = {
+  id: string;
+  name: string;
+  description: string | null;
+};
 
 export default function SignupScreen() {
   const [email, setEmail] = useState('');
@@ -18,12 +25,48 @@ export default function SignupScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState('');
+  const [companiesLoading, setCompaniesLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
   const router = useRouter();
 
+  useEffect(() => {
+    let active = true;
+
+    const loadCompanies = async () => {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('id, name, description')
+        .order('name');
+
+      if (!active) return;
+
+      if (error) {
+        console.error('Error loading companies:', error);
+        Alert.alert('Fehler', 'Die Filialen konnten nicht geladen werden.');
+      } else {
+        const availableCompanies = data ?? [];
+        setCompanies(availableCompanies);
+
+        if (availableCompanies.length === 1) {
+          setSelectedCompanyId(availableCompanies[0].id);
+        }
+      }
+
+      setCompaniesLoading(false);
+    };
+
+    void loadCompanies();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const handleSignup = async () => {
-    if (!email || !password || !confirmPassword || !firstName || !lastName) {
+    if (!email || !password || !confirmPassword || !firstName || !lastName || !selectedCompanyId) {
       Alert.alert('Fehler', 'Bitte alle Felder ausfüllen');
       return;
     }
@@ -40,12 +83,20 @@ export default function SignupScreen() {
 
     setLoading(true);
     try {
-      await signUp(email, password, firstName, lastName);
-      Alert.alert(
-        'Erfolg',
-        'Registrierung erfolgreich! Bitte überprüfe deine Email.',
-        [{ text: 'OK', onPress: () => router.push('/auth/login') }]
-      );
+      const result = await signUp(email, password, firstName, lastName, selectedCompanyId);
+
+      if (result.requiresEmailConfirmation) {
+        Alert.alert(
+          'Registrierung erfolgreich',
+          'Bitte bestätige jetzt deine E-Mail-Adresse. Danach kannst du dich anmelden.',
+          [{ text: 'OK', onPress: () => router.replace('/auth/login') }]
+        );
+      } else {
+        Alert.alert(
+          'Registrierung erfolgreich',
+          'Dein Konto wartet jetzt auf die Freigabe durch den Studio-Owner.'
+        );
+      }
     } catch (error: any) {
       Alert.alert('Registrierung Fehler', error.message || 'Registrierung fehlgeschlagen');
     } finally {
@@ -87,6 +138,39 @@ export default function SignupScreen() {
         autoCapitalize="none"
       />
 
+      <Text style={styles.sectionTitle}>Filiale</Text>
+      {companiesLoading ? (
+        <ActivityIndicator style={styles.companiesLoading} color="#208AEF" />
+      ) : companies.length === 0 ? (
+        <Text style={styles.companyError}>
+          Keine Filiale verfügbar. Bitte wende dich an das Studio.
+        </Text>
+      ) : (
+        <View style={styles.companyList}>
+          {companies.map((company) => {
+            const selected = company.id === selectedCompanyId;
+
+            return (
+              <TouchableOpacity
+                key={company.id}
+                style={[styles.companyCard, selected && styles.companyCardSelected]}
+                onPress={() => setSelectedCompanyId(company.id)}
+                disabled={loading}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: selected }}
+              >
+                <Text style={[styles.companyName, selected && styles.companyNameSelected]}>
+                  {company.name}
+                </Text>
+                {company.description ? (
+                  <Text style={styles.companyDescription}>{company.description}</Text>
+                ) : null}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
       <TextInput
         style={styles.input}
         placeholder="Passwort"
@@ -108,9 +192,12 @@ export default function SignupScreen() {
       />
 
       <TouchableOpacity
-        style={[styles.button, loading && styles.buttonDisabled]}
+        style={[
+          styles.button,
+          (loading || companiesLoading || companies.length === 0) && styles.buttonDisabled,
+        ]}
         onPress={handleSignup}
-        disabled={loading}
+        disabled={loading || companiesLoading || companies.length === 0}
       >
         {loading ? (
           <ActivityIndicator color="#fff" />
@@ -158,6 +245,48 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 15,
     fontSize: 16,
+  },
+  sectionTitle: {
+    color: '#333',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  companiesLoading: {
+    marginVertical: 16,
+  },
+  companyError: {
+    color: '#b00020',
+    marginBottom: 15,
+  },
+  companyList: {
+    marginBottom: 5,
+  },
+  companyCard: {
+    backgroundColor: '#fafafa',
+    borderColor: '#ddd',
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 10,
+    padding: 12,
+  },
+  companyCardSelected: {
+    backgroundColor: '#E8F4FE',
+    borderColor: '#208AEF',
+    borderWidth: 2,
+  },
+  companyName: {
+    color: '#222',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  companyNameSelected: {
+    color: '#0066CC',
+  },
+  companyDescription: {
+    color: '#666',
+    fontSize: 13,
+    marginTop: 4,
   },
   button: {
     backgroundColor: '#208AEF',

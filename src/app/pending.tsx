@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useAuth } from '@/context/auth-context';
-import { useRouter } from 'expo-router';
 
 export default function PendingScreen() {
-  const { userProfile, signOut } = useAuth();
-  const router = useRouter();
+  const { userProfile, signOut, isImpersonating } = useAuth();
+  const isRejected = userProfile?.status === 'rejected';
+  const profileMissing = userProfile === null;
 
   const handleLogout = async () => {
     Alert.alert('Abmelden', 'Möchtest du dich abmelden?', [
@@ -23,49 +23,67 @@ export default function PendingScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Willkommen! 👋</Text>
+        <Text style={styles.title}>
+          {isRejected ? 'Konto abgelehnt' : profileMissing ? 'Profil nicht verfügbar' : 'Willkommen! 👋'}
+        </Text>
         <Text style={styles.subtitle}>
-          Hallo {userProfile?.first_name}, danke dass du dich registriert hast!
+          {isRejected
+            ? 'Dein Konto wurde vom Studio noch nicht freigegeben.'
+            : profileMissing
+              ? 'Zu deinem Konto konnte kein Benutzerprofil geladen werden.'
+              : `Hallo ${userProfile.first_name ?? ''}, danke dass du dich registriert hast!`}
         </Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>🔔 Dein Konto wartet auf Bestätigung</Text>
-        <Text style={styles.cardText}>
-          Der Studio-Inhaber muss dein Konto zuerst genehmigen, bevor du Zugriff auf alle Kurse und
-          Features hast.
-        </Text>
-      </View>
+      {isRejected ? (
+        <View style={[styles.card, styles.rejectedCard]}>
+          <Text style={styles.cardTitle}>Bitte kontaktiere das Studio</Text>
+          <Text style={styles.cardText}>
+            Wenn du glaubst, dass dein Konto versehentlich abgelehnt wurde, wende dich bitte direkt
+            an den Studio-Inhaber.
+          </Text>
+        </View>
+      ) : profileMissing ? (
+        <View style={[styles.card, styles.rejectedCard]}>
+          <Text style={styles.cardTitle}>Datenbankeinrichtung erforderlich</Text>
+          <Text style={styles.cardText}>
+            Melde dich erneut an, nachdem das aktuelle Datenbankschema im Supabase SQL Editor
+            ausgeführt wurde.
+          </Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>🔔 Dein Konto wartet auf Bestätigung</Text>
+            <Text style={styles.cardText}>
+              Der Studio-Inhaber muss dein Konto zuerst genehmigen, bevor du Zugriff auf alle Kurse
+              und Features hast.
+            </Text>
+          </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>📋 Was siehst du jetzt?</Text>
-        <Text style={styles.cardText}>
-          • Studio-Informationen und Stammdaten{'\n'}
-          • Öffnungszeiten und Kontakt{'\n'}
-          • Allgemeine Informationen
-        </Text>
-      </View>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>✨ Nach der Freigabe erhältst du</Text>
+            <Text style={styles.cardText}>
+              • Zugriff auf alle Kurse{'\n'}
+              • Buchung von Trainingseinheiten{'\n'}
+              • Persönliche Trainingspläne{'\n'}
+              • Benachrichtigungen und Updates
+            </Text>
+          </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>✨ Was kommt später?</Text>
-        <Text style={styles.cardText}>
-          Sobald dein Konto genehmigt wird, erhältst du:{'\n'}
-          • Zugriff auf alle Kurse{'\n'}
-          • Buchung von Trainingseinheiten{'\n'}
-          • Persönliche Trainingspläne{'\n'}
-          • Benachrichtigungen und Updates
-        </Text>
-      </View>
+          <View style={styles.info}>
+            <Text style={styles.infoText}>
+              ⏱️ Die Bestätigung erfolgt normalerweise innerhalb von 24 Stunden.
+            </Text>
+          </View>
+        </>
+      )}
 
-      <View style={styles.info}>
-        <Text style={styles.infoText}>
-          ⏱️ Bestätigung erfolgt normalerweise innerhalb von 24 Stunden.
-        </Text>
-      </View>
-
-      <TouchableOpacity style={styles.button} onPress={handleLogout}>
-        <Text style={styles.buttonText}>Abmelden</Text>
-      </TouchableOpacity>
+      {!isImpersonating && (
+        <TouchableOpacity style={styles.button} onPress={handleLogout}>
+          <Text style={styles.buttonText}>Abmelden</Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 }
@@ -97,6 +115,9 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     borderLeftWidth: 4,
     borderLeftColor: '#208AEF',
+  },
+  rejectedCard: {
+    borderLeftColor: '#f44336',
   },
   cardTitle: {
     fontSize: 16,

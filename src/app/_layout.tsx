@@ -1,13 +1,13 @@
-import { DarkTheme, DefaultTheme, ThemeProvider, Stack } from 'expo-router';
+import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme, View, ActivityIndicator } from 'react-native';
+import { useColorScheme, View } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { ImpersonationBanner } from '@/components/impersonation-banner';
 import { AuthProvider, useAuth } from '@/context/auth-context';
-import PendingScreen from './pending';
 
-SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync();
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
@@ -17,33 +17,27 @@ function RootLayoutNav() {
     return <AnimatedSplashOverlay />;
   }
 
+  const isApproved = session !== null && userProfile?.status === 'approved';
+  const needsReview = session !== null && userProfile?.status !== 'approved';
+
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      {!session ? (
-        // Auth Screens (Login/Signup)
-        <Stack
-          screenOptions={{
-            headerShown: false,
-          }}
-        >
-          <Stack.Screen name="auth" options={{ animationEnabled: false }} />
+      <View style={{ flex: 1 }}>
+        <ImpersonationBanner />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Protected guard={session === null}>
+            <Stack.Screen name="auth" options={{ animation: 'none' }} />
+          </Stack.Protected>
+
+          <Stack.Protected guard={needsReview}>
+            <Stack.Screen name="pending" options={{ animation: 'none' }} />
+          </Stack.Protected>
+
+          <Stack.Protected guard={isApproved}>
+            <Stack.Screen name="(app)" options={{ animation: 'none' }} />
+          </Stack.Protected>
         </Stack>
-      ) : userProfile?.status === 'pending' ? (
-        // Pending Screen - User wartet auf Bestätigung
-        <Stack
-          screenOptions={{
-            headerShown: false,
-          }}
-        >
-          <Stack.Screen name="pending" options={{ animationEnabled: false }} />
-        </Stack>
-      ) : (
-        // App Screens (Tabs + andere Screens) - nur für approved Users
-        <>
-          <AnimatedSplashOverlay />
-          <AppTabs />
-        </>
-      )}
+      </View>
     </ThemeProvider>
   );
 }

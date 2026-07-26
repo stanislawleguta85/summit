@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'rea
 import { useAuth } from '@/context/auth-context';
 
 export default function HomeScreen() {
-  const { userProfile, session, signOut } = useAuth();
+  const { userProfile, session, signOut, isImpersonating } = useAuth();
 
   const handleLogout = async () => {
     Alert.alert('Abmelden', 'Möchtest du dich wirklich abmelden?', [
@@ -42,7 +42,9 @@ export default function HomeScreen() {
         </View>
         <View style={styles.profileRow}>
           <Text style={styles.label}>Email:</Text>
-          <Text style={styles.value}>{session?.user?.email}</Text>
+          <Text style={[styles.value, styles.emailValue]}>
+            {isImpersonating ? 'In Vorschau nicht verfügbar' : session?.user?.email}
+          </Text>
         </View>
         <View style={styles.profileRow}>
           <Text style={styles.label}>Rolle:</Text>
@@ -84,10 +86,12 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* Logout Button */}
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>Abmelden</Text>
-      </TouchableOpacity>
+      {/* In der Vorschau würde Abmelden den echten Owner ausloggen. */}
+      {!isImpersonating && (
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutButtonText}>Abmelden</Text>
+        </TouchableOpacity>
+      )}
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>Summit v1.0.0</Text>
@@ -151,6 +155,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#000',
     fontWeight: '600',
+  },
+  emailValue: {
+    flex: 1,
+    marginLeft: 12,
+    textAlign: 'right',
   },
   roleTag: {
     backgroundColor: '#E3F2FD',

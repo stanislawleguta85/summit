@@ -1,12 +1,25 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session } from '@supabase/supabase-js';
-import { supabase, UserProfile } from './supabase';
+import { supabase, UserProfile } from '@/lib/supabase';
 
 type AuthContextType = {
   session: Session | null;
   loading: boolean;
+  authenticatedUserProfile: UserProfile | null;
   userProfile: UserProfile | null;
-  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  impersonatedProfile: UserProfile | null;
+  isImpersonating: boolean;
+  canImpersonate: boolean;
+  loadImpersonatableProfiles: () => Promise<UserProfile[]>;
+  startImpersonation: (profile: UserProfile) => void;
+  stopImpersonation: () => void;
+  signUp: (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+    companyId: string
+  ) => Promise<{ requiresEmailConfirmation: boolean }>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   approveUser: (userId: string) => Promise<void>;
@@ -18,35 +31,55 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [authenticatedUserProfile, setAuthenticatedUserProfile] = useState<UserProfile | null>(
+    null
+  );
+  const [impersonatedProfile, setImpersonatedProfile] = useState<UserProfile | null>(null);
+
+  const userProfile = impersonatedProfile ?? authenticatedUserProfile;
+  const isImpersonating = impersonatedProfile !== null;
+  const canImpersonate =
+    __DEV__ &&
+    authenticatedUserProfile?.role === 'owner' &&
+    authenticatedUserProfile.status === 'approved';
 
   useEffect(() => {
     // Initiale Session laden
     const loadSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
 
-      if (data.session?.user) {
-        await fetchUserProfile(data.session.user.id);
+        setSession(data.session);
+
+        if (data.session?.user) {
+          await fetchUserProfile(data.session.user.id);
+        }
+      } catch (error) {
+        console.error('Error loading session:', error);
+        setSession(null);
+        setAuthenticatedUserProfile(null);
+        setImpersonatedProfile(null);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
     loadSession();
 
     // Auth State Listener
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
 
-        if (session?.user) {
-          await fetchUserProfile(session.user.id);
-        } else {
-          setUserProfile(null);
-        }
+      if (nextSession?.user) {
+        setTimeout(() => {
+          void fetchUserProfile(nextSession.user.id);
+        }, 0);
+      } else {
+        setAuthenticatedUserProfile(null);
+        setImpersonatedProfile(null);
       }
-    );
+    });
 
     return () => {
       authListener?.subscription.unsubscribe();
@@ -59,39 +92,80 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .from('user_profiles')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
-      setUserProfile(data);
+      setAuthenticatedUserProfile(data);
     } catch (err) {
       console.error('Error fetching user profile:', err);
-      setUserProfile(null);
+      setAuthenticatedUserProfile(null);
+      setImpersonatedProfile(null);
     }
   };
 
-  const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
+  const loadImpersonatableProfiles = async () => {
+    if (!canImpersonate || !authenticatedUserProfile) {
+      throw new Error('Die Benutzeransicht ist nur für freigegebene Owner im Entwicklungsmodus verfügbar.');
+    }
+
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('company_id', authenticatedUserProfile.company_id)
+      .order('last_name', { ascending: true })
+      .order('first_name', { ascending: true });
+
+    if (error) throw error;
+    return (data ?? []) as UserProfile[];
+  };
+
+  const startImpersonation = (profile: UserProfile) => {
+    if (!canImpersonate || !authenticatedUserProfile) {
+      throw new Error('Die Benutzeransicht ist nicht verfügbar.');
+    }
+
+    if (profile.company_id !== authenticatedUserProfile.company_id) {
+      throw new Error('Es können nur Benutzer derselben Firma angezeigt werden.');
+    }
+
+    if (profile.user_id === authenticatedUserProfile.user_id) {
+      setImpersonatedProfile(null);
+      return;
+    }
+
+    setImpersonatedProfile(profile);
+  };
+
+  const stopImpersonation = () => {
+    setImpersonatedProfile(null);
+  };
+
+  const signUp = async (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+    companyId: string
+  ) => {
     try {
-      // 1. Benutzer in Auth erstellen
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
+        email: email.trim().toLowerCase(),
         password,
+        options: {
+          data: {
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+            company_id: companyId,
+          },
+        },
       });
 
       if (authError) throw authError;
       if (!authData.user) throw new Error('Sign up failed');
 
-      // 2. User Profile mit "pending" Status erstellen
-      // Hinweis: Hier nehmen wir an, dass es eine Standard-Company gibt (id: default-company)
-      const { error: profileError } = await supabase.from('user_profiles').insert({
-        user_id: authData.user.id,
-        company_id: 'default-company', // Später dynamisch
-        first_name: firstName,
-        last_name: lastName,
-        role: 'customer',
-        status: 'pending',
-      });
-
-      if (profileError) throw profileError;
+      return {
+        requiresEmailConfirmation: authData.session === null,
+      };
     } catch (err) {
       console.error('Sign up error:', err);
       throw err;
@@ -114,7 +188,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
+      setSession(null);
+      setAuthenticatedUserProfile(null);
+      setImpersonatedProfile(null);
+
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
       if (error) throw error;
     } catch (err) {
       console.error('Sign out error:', err);
@@ -124,14 +202,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const approveUser = async (userId: string) => {
     try {
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({
-          status: 'approved',
-          approved_by: session?.user.id,
-          approved_at: new Date().toISOString(),
-        })
-        .eq('user_id', userId);
+      const { error } = await supabase.rpc('review_user', {
+        target_user_id: userId,
+        new_status: 'approved',
+      });
 
       if (error) throw error;
     } catch (err) {
@@ -142,14 +216,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const rejectUser = async (userId: string) => {
     try {
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({
-          status: 'rejected',
-          approved_by: session?.user.id,
-          approved_at: new Date().toISOString(),
-        })
-        .eq('user_id', userId);
+      const { error } = await supabase.rpc('review_user', {
+        target_user_id: userId,
+        new_status: 'rejected',
+      });
 
       if (error) throw error;
     } catch (err) {
@@ -163,7 +233,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         session,
         loading,
+        authenticatedUserProfile,
         userProfile,
+        impersonatedProfile,
+        isImpersonating,
+        canImpersonate,
+        loadImpersonatableProfiles,
+        startImpersonation,
+        stopImpersonation,
         signUp,
         signIn,
         signOut,

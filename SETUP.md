@@ -1,142 +1,104 @@
-# Summit - Supabase Setup Guide
+# Summit – Supabase-Einrichtung
 
-## 🚀 Schritte für die Einrichtung
+## 1. App-Konfiguration
 
-### 1. Supabase Projekt erstellen
-- Gehe zu https://supabase.com
-- Erstelle ein neues Projekt
-- Warte bis der Projekt initialisiert ist
+Die Datei `.env.local` muss diese beiden öffentlichen Werte aus dem Supabase Dashboard enthalten:
 
-### 2. Datenbank erstellen
-- Kopiere den SQL Code aus `DATABASE_SCHEMA.sql`
-- Gehe zu deinem Supabase Projekt → SQL Editor
-- Erstelle eine neue Query
-- Paste den kompletten SQL Code
-- Führe die Query aus
-
-### 3. Supabase Credentials konfigurieren
-- Gehe zu deinem Supabase Projekt → Settings → API
-- Kopiere:
-  - **Project URL** (z.B. `https://your-project.supabase.co`)
-  - **Anon Public Key** (unter Anon Key)
-
-### 4. Credentials in App eintragen
-Öffne `src/lib/supabase.ts` und ersetze:
-```typescript
-const SUPABASE_URL = 'https://your-project.supabase.co'; // Deine URL
-const SUPABASE_ANON_KEY = 'your-anon-key'; // Dein Anon Key
+```env
+EXPO_PUBLIC_SUPABASE_URL=https://DEIN-PROJEKT.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=DEIN-ANON-KEY
 ```
 
-### 5. Erste Testdaten
-Führe folgendes SQL aus, um eine Test-Company zu erstellen:
+Der `service_role`-Key darf niemals in die App oder in eine `EXPO_PUBLIC_`-Variable eingetragen
+werden.
+
+## 2. Datenbankschema anwenden
+
+1. Im Supabase Dashboard **SQL Editor** öffnen.
+2. Eine neue Query erstellen.
+3. Den vollständigen Inhalt aus `DATABASE_SCHEMA.sql` einfügen.
+4. **Run** ausführen.
+
+Das Skript kann auch auf der bestehenden Datenbank ausgeführt werden. Vorhandene Tabellen, die
+Filiale „Coralles de Buelna“ und bestehende Profile werden nicht gelöscht.
+
+## 3. Ersten Owner einrichten
+
+Zuerst über die App ein normales Konto registrieren. Anschließend einmalig im SQL Editor ausführen
+und die E-Mail ersetzen:
 
 ```sql
-INSERT INTO public.companies (id, name, description) 
-VALUES ('default-company', 'Mein Studio', 'Mein erstes Studio');
+update public.user_profiles
+set
+  role = 'owner',
+  status = 'approved',
+  approved_at = now()
+where user_id = (
+  select id
+  from auth.users
+  where email = 'DEINE-EMAIL'
+);
 ```
 
----
+Danach in der App abmelden und erneut anmelden. Der Tab **Admin** ist jetzt sichtbar.
 
-## 📝 User Workflow
+## Bestehender Auth-Benutzer ohne Profil
 
-### 1. Registrierung
-- User registriert sich mit Email/Passwort + Name
-- User erhält Status `pending`
-- User kann nur Stammdaten des Studios sehen
+Falls ein Benutzer vor der Installation des neuen Triggers registriert wurde und noch kein Profil
+hat, kann das Profil einmalig so ergänzt werden:
 
-### 2. Admin Bestätigung
-- Owner sieht alle `pending` User im Admin Panel
-- Owner kann User genehmigen oder ablehnen
-- User erhält Status `approved` oder `rejected`
-
-### 3. Zugriff nach Bestätigung
-- User mit Status `approved` kann alle Kurse sehen
-- User kann sich in Kurse anmelden
-- Voll Zugriff auf die App
-
----
-
-## 🔐 Rollen & Berechtigungen
-
-### Owner (Studio-Inhaber)
-- Admin Panel Zugriff
-- Kann User bestätigen/ablehnen
-- Kann Kurse erstellen
-
-### Trainer
-- Kann Kurse erstellen/bearbeiten
-- Sieht angemeldete User
-- Kann Feedback geben
-
-### Customer (Kunde)
-- Sieht verfügbare Kurse (nach Bestätigung)
-- Kann sich anmelden
-- Sieht eigene Trainingspläne
-
----
-
-## 🧪 Testen
-
-### 1. App starten
-```bash
-npm install
-expo start
+```sql
+insert into public.user_profiles (
+  user_id,
+  company_id,
+  first_name,
+  last_name,
+  role,
+  status
+)
+select
+  auth_user.id,
+  company.id,
+  coalesce(auth_user.raw_user_meta_data ->> 'first_name', ''),
+  coalesce(auth_user.raw_user_meta_data ->> 'last_name', ''),
+  'customer',
+  'pending'
+from auth.users as auth_user
+cross join lateral (
+  select id
+  from public.companies
+  order by created_at
+  limit 1
+) as company
+where auth_user.email = 'DEINE-EMAIL'
+  and not exists (
+    select 1
+    from public.user_profiles
+    where user_id = auth_user.id
+  );
 ```
 
-### 2. Testbenutzer erstellen
-- Öffne die App
-- Gehe zu "Registrieren"
-- Erstelle einen Test-Account
-- Du solltest auf dem "Pending" Screen landen
+Anschließend kann dieses Profil mit dem vorherigen Owner-SQL freigegeben werden.
 
-### 3. Als Owner genehmigen
-- Registriere einen Owner-Account (nutze den `role: 'owner'` in der DB)
-- Gehe zum Admin Panel
-- Genehmige den Test-Benutzer
+## Benutzerablauf
 
----
+1. Der Benutzer wählt bei der Registrierung eine Filiale.
+2. Supabase Auth erstellt das Konto.
+3. Ein Datenbank-Trigger erstellt sicher ein Profil als `customer` mit Status `pending`.
+4. Der Benutzer bestätigt gegebenenfalls seine E-Mail und meldet sich an.
+5. Ein genehmigter Owner sieht den Benutzer im Adminbereich.
+6. Der Owner genehmigt oder lehnt das Konto über die geschützte Funktion `review_user` ab.
+7. Nur Benutzer mit Status `approved` erhalten Zugriff auf den Appbereich.
 
-## 🐛 Häufige Probleme
+## Entwicklung starten
 
-### "Supabase nicht verbunden"
-- Überprüfe die Credentials in `src/lib/supabase.ts`
-- Stelle sicher, dass deine API Key aktiv ist
+```powershell
+npm.cmd install
+npm.cmd start
+```
 
-### "User Profile nicht gefunden"
-- Überprüfe, dass die `user_profiles` Tabelle existiert
-- Überprüfe RLS Policies in Supabase
+Computer und iPhone müssen für die normale LAN-Verbindung im selben WLAN sein. Alternativ:
 
-### "pending" Screen wird nicht angezeigt
-- Stelle sicher, dass `userProfile?.status` in `auth-context.tsx` richtig gesetzt ist
-- Überprüfe die Supabase Response
-
----
-
-## 📦 Abhängigkeiten
-
-Diese wurden bereits installiert:
-- `@supabase/supabase-js` - Supabase Client
-- `@react-native-async-storage/async-storage` - Lokale Session Persistierung
-- `expo-router` - Navigation
-- `react-native` - UI Framework
-
----
-
-## 🎯 Nächste Schritte
-
-1. ✅ Supabase Setup abgeschlossen
-2. ⬜ Login/Sign-up implementieren → FERTIG ✅
-3. ⬜ Admin Panel hinzufügen → FERTIG ✅
-4. ⬜ Kurse & Anmeldung implementieren
-5. ⬜ Benachrichtigungen hinzufügen
-6. ⬜ Für iOS/Android builden
-
----
-
-## 💡 Tipps
-
-- Nutze den Supabase SQL Editor zum Debuggen
-- Überprüfe immer die Logs in der Browser Console
-- Nutze AsyncStorage DevTools zum Debuggen von Sessions
-
-Viel Erfolg! 🚀
+```powershell
+npx.cmd expo start --tunnel
+```
