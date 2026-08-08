@@ -6,6 +6,7 @@ import {
   TabTriggerSlotProps,
   TabListProps,
 } from 'expo-router/ui';
+import type { Href } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { Pressable, useColorScheme, View, StyleSheet } from 'react-native';
 
@@ -15,9 +16,27 @@ import { ThemedView } from './themed-view';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
+import { OwnerTabs } from './admin/owner-tabs';
 
 export default function AppTabs() {
-  const { userProfile } = useAuth();
+  const { hasPermission, hasRole } = useAuth();
+  const isOwner = hasRole('owner');
+  const canReadAssignedCourses = hasPermission('courses', 'read', 'assigned');
+  const canReadEligibleCourses = hasPermission('courses', 'read', 'eligible');
+  const canReadAssignedClients = hasPermission('clients', 'read', 'assigned');
+  const canReadAssignedRequests = hasPermission(
+    'training_requests',
+    'read',
+    'assigned'
+  );
+  const canReadOwnChanges =
+    hasRole('customer') && hasPermission('booking_changes', 'read', 'own');
+  const canReadAssignedChanges =
+    hasRole('trainer') && hasPermission('booking_changes', 'read', 'assigned');
+
+  if (isOwner) {
+    return <OwnerTabs trainerEnabled={canReadAssignedCourses} />;
+  }
 
   return (
     <Tabs>
@@ -27,14 +46,34 @@ export default function AppTabs() {
           <TabTrigger name="home" href="/(app)" asChild>
             <TabButton>Home</TabButton>
           </TabTrigger>
-          <TabTrigger name="explore" href="/(app)/explore" asChild>
-            <TabButton>Explore</TabButton>
-          </TabTrigger>
-          {userProfile?.role === 'owner' && (
-            <TabTrigger name="admin" href="/admin/index" asChild>
-              <TabButton>Admin</TabButton>
+          {canReadEligibleCourses ? (
+            <TabTrigger name="courses" href="/(app)/courses" asChild>
+              <TabButton>Cursos</TabButton>
             </TabTrigger>
-          )}
+          ) : null}
+          {canReadAssignedCourses ? (
+            <TabTrigger name="classes" href="/(app)/classes" asChild>
+              <TabButton>Clases</TabButton>
+            </TabTrigger>
+          ) : null}
+          {canReadAssignedClients ? (
+            <TabTrigger name="clients" href="/(app)/clients" asChild>
+              <TabButton>Clientes</TabButton>
+            </TabTrigger>
+          ) : null}
+          {canReadAssignedRequests ? (
+            <TabTrigger
+              name="training-requests"
+              href="/(app)/training-requests"
+              asChild>
+              <TabButton>Solicitudes</TabButton>
+            </TabTrigger>
+          ) : null}
+          {canReadOwnChanges || canReadAssignedChanges ? (
+            <TabTrigger name="changes" href={'/(app)/changes' as Href} asChild>
+              <TabButton>Cambios</TabButton>
+            </TabTrigger>
+          ) : null}
         </CustomTabList>
       </TabList>
     </Tabs>

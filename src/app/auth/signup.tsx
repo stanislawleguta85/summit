@@ -25,6 +25,7 @@ export default function SignupScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState('');
   const [companiesLoading, setCompaniesLoading] = useState(true);
@@ -66,8 +67,28 @@ export default function SignupScreen() {
   }, []);
 
   const handleSignup = async () => {
-    if (!email || !password || !confirmPassword || !firstName || !lastName || !selectedCompanyId) {
+    if (
+      !email ||
+      !password ||
+      !confirmPassword ||
+      !firstName ||
+      !lastName ||
+      !phoneNumber ||
+      !selectedCompanyId
+    ) {
       Alert.alert('Fehler', 'Bitte alle Felder ausfüllen');
+      return;
+    }
+
+    const cleanPhoneNumber = phoneNumber.trim();
+    const phoneDigits = cleanPhoneNumber.replace(/\D/g, '');
+    if (
+      !/^[+0-9][0-9\s().-]*$/.test(cleanPhoneNumber) ||
+      cleanPhoneNumber.length > 30 ||
+      phoneDigits.length < 7 ||
+      phoneDigits.length > 15
+    ) {
+      Alert.alert('Fehler', 'Bitte eine gültige Telefonnummer eingeben');
       return;
     }
 
@@ -83,7 +104,14 @@ export default function SignupScreen() {
 
     setLoading(true);
     try {
-      const result = await signUp(email, password, firstName, lastName, selectedCompanyId);
+      const result = await signUp(
+        email,
+        password,
+        firstName,
+        lastName,
+        cleanPhoneNumber,
+        selectedCompanyId
+      );
 
       if (result.requiresEmailConfirmation) {
         Alert.alert(
@@ -136,6 +164,18 @@ export default function SignupScreen() {
         editable={!loading}
         keyboardType="email-address"
         autoCapitalize="none"
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Telefonnummer"
+        placeholderTextColor="#999"
+        value={phoneNumber}
+        onChangeText={setPhoneNumber}
+        editable={!loading}
+        keyboardType="phone-pad"
+        autoComplete="tel"
+        textContentType="telephoneNumber"
       />
 
       <Text style={styles.sectionTitle}>Filiale</Text>

@@ -13,22 +13,22 @@ export function ImpersonationBanner() {
 
   const fullName =
     [impersonatedProfile.first_name, impersonatedProfile.last_name].filter(Boolean).join(' ') ||
-    'Unbekannter Benutzer';
+    'Usuario desconocido';
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
       <View style={styles.description}>
-        <Text style={styles.eyebrow}>ENTWICKLUNGSVORSCHAU</Text>
+        <Text style={styles.eyebrow}>VISTA DE DESARROLLO</Text>
         <Text style={styles.name} numberOfLines={1}>
-          Ansicht als {fullName}
+          Vista como {fullName}
         </Text>
       </View>
       <TouchableOpacity
         accessibilityRole="button"
-        accessibilityLabel="Benutzeransicht beenden"
+        accessibilityLabel="Cerrar vista de usuario"
         onPress={stopImpersonation}
         style={styles.button}>
-        <Text style={styles.buttonText}>Beenden</Text>
+        <Text style={styles.buttonText}>Cerrar</Text>
       </TouchableOpacity>
     </View>
   );

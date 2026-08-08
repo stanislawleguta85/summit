@@ -1,651 +1,512 @@
-import { Link, useNavigation } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
-import React, { useEffect, useState } from 'react';
+import Feather from '@expo/vector-icons/Feather';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useRouter, type Href } from 'expo-router';
+import { useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Modal,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AdminDashboardTile } from '@/components/admin-dashboard-tile';
-import { AdminColors } from '@/constants/admin-theme';
+import {
+  AdminCard,
+  AdminHeader,
+  AdminScrollScreen,
+  ChevronRow,
+  HeaderIconButton,
+  InitialAvatar,
+  SearchInput,
+  SectionHeading,
+  SkeletonBlock,
+} from '@/components/admin/admin-ui';
+import {
+  adminColors,
+  adminHairline,
+  adminRadius,
+  adminType,
+} from '@/constants/admin-theme';
 import { useAuth } from '@/context/auth-context';
-import { supabase, type UserProfile } from '@/lib/supabase';
+import { useAdminData } from '@/hooks/use-admin-data';
+import type { UserProfile, UserRole } from '@/lib/supabase';
 
-type DashboardCounts = {
-  pendingMembers: number;
-  courses: number;
-  members: number;
-  trainers: number;
-};
-
-const EMPTY_COUNTS: DashboardCounts = {
-  pendingMembers: 0,
-  courses: 0,
-  members: 0,
-  trainers: 0,
-};
-
-const RECENT_REQUESTS = [
-  { id: 'preview-1', time: '08:00–09:00', name: 'Alex López', status: '4 / 10 Plätze' },
-  { id: 'preview-2', time: '18:00–19:00', name: 'Marta Ruiz', status: '8 / 10 Plätze' },
+const SETTINGS = [
+  { icon: 'office-building-outline', label: 'Perfil del estudio' },
+  { icon: 'credit-card-outline', label: 'Membresías y precios' },
+  { icon: 'receipt-text-outline', label: 'Pagos y facturación' },
+  { icon: 'clock-remove-outline', label: 'Política de cancelación' },
+  { icon: 'bell-outline', label: 'Notificaciones' },
+  { icon: 'clock-outline', label: 'Horario de apertura' },
 ] as const;
 
-export default function AdminDashboardScreen() {
+export default function AdminScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
   const {
-    authenticatedUserProfile,
     canImpersonate,
+    isImpersonating,
     loadImpersonatableProfiles,
+    signOut,
     startImpersonation,
   } = useAuth();
-  const [counts, setCounts] = useState<DashboardCounts>(EMPTY_COUNTS);
-  const [countsLoading, setCountsLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { profiles, roleAssignments, loading, refreshing, error, reload } = useAdminData();
+  const [query, setQuery] = useState('');
   const [profilePickerVisible, setProfilePickerVisible] = useState(false);
-  const [profiles, setProfiles] = useState<UserProfile[]>([]);
-  const [profilesLoading, setProfilesLoading] = useState(false);
+  const [pickerProfiles, setPickerProfiles] = useState<UserProfile[]>([]);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
-  const loadCounts = async () => {
-    if (!authenticatedUserProfile?.company_id) {
-      setCountsLoading(false);
-      setRefreshing(false);
-      return;
-    }
+  const approvedProfiles = profiles.filter((profile) => profile.status === 'approved');
+  const filteredProfiles = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase('es-ES');
+    if (!normalizedQuery) return approvedProfiles;
 
-    try {
-      const [profilesResult, coursesResult] = await Promise.all([
-        supabase
-          .from('user_profiles')
-          .select('status, role')
-          .eq('company_id', authenticatedUserProfile.company_id),
-        supabase
-          .from('courses')
-          .select('id', { count: 'exact', head: true })
-          .eq('company_id', authenticatedUserProfile.company_id),
-      ]);
-
-      if (profilesResult.error) throw profilesResult.error;
-      if (coursesResult.error) throw coursesResult.error;
-
-      const companyProfiles = profilesResult.data ?? [];
-      setCounts({
-        pendingMembers: companyProfiles.filter((profile) => profile.status === 'pending').length,
-        members: companyProfiles.filter((profile) => profile.status === 'approved').length,
-        trainers: companyProfiles.filter(
-          (profile) => profile.status === 'approved' && profile.role === 'trainer'
-        ).length,
-        courses: coursesResult.count ?? 0,
-      });
-    } catch (error) {
-      console.error('Error loading admin dashboard:', error);
-      Alert.alert('Fehler', 'Die Dashboard-Zahlen konnten nicht geladen werden.');
-    } finally {
-      setCountsLoading(false);
-      setRefreshing(false);
-    }
+    return approvedProfiles.filter((profile) => {
+      const name = [profile.first_name, profile.last_name]
+        .filter(Boolean)
+        .join(' ')
+        .toLocaleLowerCase('es-ES');
+      return (
+        name.includes(normalizedQuery) ||
+        formatRoles(profile, roleAssignments).toLowerCase().includes(normalizedQuery)
+      );
+    });
+  }, [approvedProfiles, query, roleAssignments]);
+  const previewProfiles = filteredProfiles.slice(0, 3);
+  const roleCounts = {
+    owner: approvedProfiles.filter((profile) => hasRole(profile, 'owner', roleAssignments)).length,
+    trainer: approvedProfiles.filter((profile) => hasRole(profile, 'trainer', roleAssignments)).length,
+    customer: approvedProfiles.filter((profile) => hasRole(profile, 'customer', roleAssignments)).length,
   };
-
-  useEffect(() => {
-    void loadCounts();
-  }, [authenticatedUserProfile?.company_id]);
 
   const openProfilePicker = async () => {
     setProfilePickerVisible(true);
-    setProfilesLoading(true);
-
+    setPickerLoading(true);
     try {
-      setProfiles(await loadImpersonatableProfiles());
-    } catch (error: any) {
+      setPickerProfiles(await loadImpersonatableProfiles());
+    } catch (pickerError: any) {
       setProfilePickerVisible(false);
-      Alert.alert('Fehler', error.message || 'Benutzer konnten nicht geladen werden.');
+      Alert.alert('Error', pickerError.message || 'Los usuarios no se pudieron cargar.');
     } finally {
-      setProfilesLoading(false);
+      setPickerLoading(false);
     }
   };
 
-  const handleStartImpersonation = (profile: UserProfile) => {
+  const beginImpersonation = async (profile: UserProfile) => {
     try {
-      navigation.getParent()?.navigate('index' as never);
-      startImpersonation(profile);
       setProfilePickerVisible(false);
-    } catch (error: any) {
-      Alert.alert('Fehler', error.message || 'Benutzeransicht konnte nicht gestartet werden.');
+      await startImpersonation(profile);
+      router.replace('/');
+    } catch (impersonationError: any) {
+      Alert.alert(
+        'Error',
+        impersonationError.message || 'La vista de usuario no se pudo iniciar.'
+      );
     }
   };
 
-  const firstName = authenticatedUserProfile?.first_name?.trim() || 'Admin';
-  const bookingRequestCount = __DEV__ ? RECENT_REQUESTS.length : 0;
+  const confirmSignOut = () => {
+    if (signingOut) return;
+
+    Alert.alert(
+      'Cerrar sesión',
+      '¿Quieres cerrar tu sesión en este dispositivo?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cerrar sesión',
+          style: 'destructive',
+          onPress: () => void handleSignOut(),
+        },
+      ]
+    );
+  };
+
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await signOut();
+    } catch (signOutError: any) {
+      setSigningOut(false);
+      Alert.alert('Error', signOutError.message || 'No se pudo cerrar la sesión.');
+    }
+  };
 
   return (
-    <View style={styles.screen}>
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: insets.top + 22, paddingBottom: insets.bottom + 110 },
-        ]}
+    <>
+      <AdminScrollScreen
         refreshControl={
           <RefreshControl
+            onRefresh={reload}
             refreshing={refreshing}
-            tintColor={AdminColors.primary}
-            onRefresh={() => {
-              setRefreshing(true);
-              void loadCounts();
-            }}
+            tintColor={adminColors.amber}
           />
         }>
-        <Text style={styles.eyebrow}>SUMMIT ADMIN</Text>
-        <Text style={styles.title}>Guten Abend, {firstName}</Text>
-        <Text style={styles.subtitle}>Was braucht heute deine Aufmerksamkeit?</Text>
+        <AdminHeader
+          eyebrow="ADMIN"
+          right={
+            <HeaderIconButton
+              accessibilityLabel="Nuevas membresías"
+              badge={profiles.filter((profile) => profile.status === 'pending').length}
+              icon="user-plus"
+              onPress={() => router.push('/admin/pending-members')}
+            />
+          }
+        />
 
-        <View style={styles.summary}>
-          <SummaryItem
-            label="Anfragen"
-            loading={countsLoading}
-            value={bookingRequestCount}
+        <SectionHeading title="Mi cuenta" />
+        <AdminCard style={styles.listCard}>
+          <ChevronRow
+            icon="user"
+            label="Mi perfil"
+            onPress={() => router.push('/profile' as Href)}
+            secondary="Foto y datos personales"
           />
-          <View style={styles.summaryDivider} />
-          <SummaryItem
-            label="Neue Mitglieder"
-            loading={countsLoading}
-            value={counts.pendingMembers}
-          />
-          <View style={styles.summaryDivider} />
-          <SummaryItem label="Kurse" loading={countsLoading} value={counts.courses} />
-        </View>
+        </AdminCard>
 
-        <Text style={styles.sectionTitle}>Verwaltung</Text>
-        <View style={styles.tileGrid}>
-          <AdminDashboardTile
-            count={bookingRequestCount}
-            countLabel="offen"
-            description="Anfragen prüfen und beantworten"
-            fallbackIcon="▣"
-            href="/admin/booking-requests"
-            icon="calendar.badge.clock"
-            title="Buchungsanfragen"
-            urgent={bookingRequestCount > 0}
-          />
-          <AdminDashboardTile
-            count={counts.pendingMembers}
-            countLabel="neu"
-            description="Registrierungen freigeben"
-            fallbackIcon="＋"
-            href="/admin/pending-members"
-            icon="person.badge.plus"
-            title="Neue Mitglieder"
-          />
-          <AdminDashboardTile
-            count={counts.courses}
-            countLabel="Kurse"
-            description="Kurse und Zeiten überblicken"
-            fallbackIcon="◷"
-            href="/admin/courses"
-            icon="calendar"
-            title="Kurse & Zeitslots"
-          />
-          <AdminDashboardTile
-            count={counts.members}
-            countLabel={counts.trainers > 0 ? `gesamt · ${counts.trainers} Trainer` : 'gesamt'}
-            description="Mitglieder und Rollen ansehen"
-            fallbackIcon="●"
-            href="/admin/members"
-            icon="person.2"
-            title="Mitglieder & Trainer"
-          />
-        </View>
+        <SearchInput
+          onChangeText={setQuery}
+          placeholder="Buscar miembro o personal"
+          value={query}
+        />
 
-        {__DEV__ && bookingRequestCount > 0 && (
-          <View style={styles.recentSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Dringend</Text>
-              <Link href="/admin/booking-requests" asChild>
-                <Pressable>
-                  <Text style={styles.sectionLink}>Alle anzeigen</Text>
-                </Pressable>
-              </Link>
-            </View>
+        <SectionHeading
+          action={<Text style={styles.sectionMeta}>{approvedProfiles.length} en total</Text>}
+          title="Personal y clientes"
+        />
 
-            <View style={styles.recentList}>
-              {RECENT_REQUESTS.map((request, index) => (
-                <Link key={request.id} href="/admin/booking-requests" asChild>
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.recentRow,
-                      index > 0 && styles.recentRowBorder,
-                      pressed && styles.recentRowPressed,
-                    ]}>
-                    <View style={styles.recentTime}>
-                      <Text style={styles.recentTimeText}>{request.time}</Text>
-                    </View>
-                    <View style={styles.recentCopy}>
-                      <Text style={styles.recentName}>{request.name}</Text>
-                      <Text style={styles.recentStatus}>{request.status}</Text>
-                    </View>
-                    <SymbolView
-                      fallback={<Text style={styles.chevron}>›</Text>}
-                      name="chevron.right"
-                      size={12}
-                      tintColor={AdminColors.textMuted}
-                      weight="bold"
-                    />
-                  </Pressable>
-                </Link>
-              ))}
-            </View>
-          </View>
+        {loading ? (
+          <>
+            <SkeletonBlock height={54} />
+            <SkeletonBlock height={54} />
+            <SkeletonBlock height={54} />
+          </>
+        ) : (
+          <AdminCard style={styles.listCard}>
+            <ChevronRow
+              label="Entrenadores"
+              onPress={() => router.push('/admin/trainers' as Href)}
+              secondary={`${roleCounts.trainer} entrenadores`}
+            />
+            <ChevronRow
+              label="Clientes"
+              onPress={() => router.push('/admin/clients' as Href)}
+              secondary={`${roleCounts.customer} clientes`}
+            />
+          </AdminCard>
         )}
 
-        {canImpersonate && (
-          <View style={styles.developmentCard}>
-            <View style={styles.developmentIcon}>
-              <SymbolView
-                fallback={<Text style={styles.developmentFallback}>◉</Text>}
-                name="eye"
-                size={22}
-                tintColor={AdminColors.primary}
-                weight="semibold"
-              />
-            </View>
-            <View style={styles.developmentCopy}>
-              <Text style={styles.developmentEyebrow}>NUR ENTWICKLUNG</Text>
-              <Text style={styles.developmentTitle}>Ansicht als Benutzer</Text>
-              <Text style={styles.developmentText}>
-                Prüfe die App aus Sicht eines Mitglieds oder Trainers.
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        <SectionHeading title="Gestión de roles" />
+        <AdminCard style={styles.listCard}>
+          <ChevronRow
+            label="Admin"
+            secondary={`Acceso total · ${roleCounts.owner} ${
+              roleCounts.owner === 1 ? 'persona' : 'personas'
+            }`}
+          />
+          <ChevronRow
+            label="Entrenador"
+            secondary={`Sus propios cursos · ${roleCounts.trainer} ${
+              roleCounts.trainer === 1 ? 'persona' : 'personas'
+            }`}
+          />
+        </AdminCard>
+
+        <SectionHeading title="Cambios de cita" />
+        <AdminCard style={styles.listCard}>
+          <ChevronRow
+            icon="repeat"
+            label="Mis cambios"
+            onPress={() => router.push('/admin/changes' as Href)}
+            secondary="Solicitudes perdidas, pendientes y recuperadas"
+          />
+        </AdminCard>
+
+        <SectionHeading title="Ajustes de la app" />
+        <AdminCard style={styles.listCard}>
+          {SETTINGS.map((item) => (
+            <Pressable
+              key={item.label}
+              onPress={() =>
+                Alert.alert(item.label, 'Esta configuración se conectará en una fase posterior.')
+              }
+              style={({ pressed }) => [styles.settingRow, pressed && styles.pressed]}>
+              <View style={styles.settingIcon}>
+                <MaterialCommunityIcons
+                  color={adminColors.iconDefault}
+                  name={item.icon}
+                  size={16}
+                />
+              </View>
+              <Text style={styles.settingLabel}>{item.label}</Text>
+              <Feather color={adminColors.textMuted} name="chevron-right" size={15} />
+            </Pressable>
+          ))}
+        </AdminCard>
+
+        {canImpersonate ? (
+          <>
+            <SectionHeading title="Desarrollo" />
+            <AdminCard>
+              <Text style={styles.devTitle}>Vista previa de usuario</Text>
+              <Text style={styles.devText}>
+                Abre la app con la vista de un miembro o entrenador sin cerrar tu sesión.
               </Text>
-            </View>
-            <TouchableOpacity style={styles.developmentButton} onPress={openProfilePicker}>
-              <Text style={styles.developmentButtonText}>Auswählen</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </ScrollView>
+              <Pressable
+                onPress={() => void openProfilePicker()}
+                style={({ pressed }) => [styles.devButton, pressed && styles.pressed]}>
+                <Feather color={adminColors.amberOn} name="eye" size={15} />
+                <Text style={styles.devButtonText}>Seleccionar usuario</Text>
+              </Pressable>
+            </AdminCard>
+          </>
+        ) : null}
+
+        {!isImpersonating ? (
+          <>
+            <SectionHeading title="Sesión" />
+            <AdminCard>
+              <Pressable
+                accessibilityLabel="Cerrar sesión"
+                disabled={signingOut}
+                onPress={confirmSignOut}
+                style={({ pressed }) => [
+                  styles.signOutButton,
+                  pressed && styles.pressed,
+                  signingOut && styles.disabled,
+                ]}>
+                <Feather color={adminColors.urgent} name="log-out" size={16} />
+                <Text style={styles.signOutText}>
+                  {signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
+                </Text>
+              </Pressable>
+            </AdminCard>
+          </>
+        ) : null}
+      </AdminScrollScreen>
 
       <Modal
         animationType="slide"
         onRequestClose={() => setProfilePickerVisible(false)}
         presentationStyle="pageSheet"
         visible={profilePickerVisible}>
-        <View style={styles.modal}>
+        <View style={[styles.modal, { paddingTop: insets.top + 18 }]}>
           <View style={styles.modalHeader}>
-            <View style={styles.modalHeading}>
-              <Text style={styles.modalTitle}>Ansicht auswählen</Text>
-              <Text style={styles.modalSubtitle}>
-                Anmeldung und Datenbankrechte bleiben unverändert.
-              </Text>
+            <View>
+              <Text style={styles.modalEyebrow}>DESARROLLO</Text>
+              <Text style={styles.modalTitle}>Vista como usuario</Text>
             </View>
-            <TouchableOpacity onPress={() => setProfilePickerVisible(false)}>
-              <Text style={styles.modalClose}>Schließen</Text>
-            </TouchableOpacity>
+            <Pressable onPress={() => setProfilePickerVisible(false)}>
+              <Text style={styles.modalClose}>Cerrar</Text>
+            </Pressable>
           </View>
 
-          {profilesLoading ? (
-            <View style={styles.modalLoading}>
-              <ActivityIndicator color={AdminColors.primary} size="large" />
-            </View>
+          {pickerLoading ? (
+            <>
+              <SkeletonBlock height={56} />
+              <SkeletonBlock height={56} />
+            </>
           ) : (
             <FlatList
-              contentContainerStyle={styles.profileList}
-              data={profiles}
+              data={pickerProfiles}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => {
-                const ownProfile = item.user_id === authenticatedUserProfile?.user_id;
-                const name =
-                  [item.first_name, item.last_name].filter(Boolean).join(' ') ||
-                  'Unbekannter Benutzer';
-
-                return (
-                  <TouchableOpacity
-                    onPress={() => handleStartImpersonation(item)}
-                    style={styles.profileRow}>
-                    <View style={styles.profileAvatar}>
-                      <Text style={styles.profileAvatarText}>
-                        {getInitials(item.first_name, item.last_name)}
-                      </Text>
-                    </View>
-                    <View style={styles.profileCopy}>
-                      <Text style={styles.profileName}>{name}</Text>
-                      <Text style={styles.profileMeta}>
-                        {formatRole(item.role)} · {formatStatus(item.status)}
-                      </Text>
-                    </View>
-                    <Text style={styles.profileAction}>
-                      {ownProfile ? 'Eigene Ansicht' : 'Anzeigen'}
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => beginImpersonation(item)}
+                  style={({ pressed }) => [styles.pickerRow, pressed && styles.pressed]}>
+                  <InitialAvatar
+                    firstName={item.first_name}
+                    lastName={item.last_name}
+                    staff={item.role !== 'customer'}
+                  />
+                  <View style={styles.personCopy}>
+                    <Text style={styles.personName}>
+                      {[item.first_name, item.last_name].filter(Boolean).join(' ') ||
+                        'Sin nombre'}
                     </Text>
-                  </TouchableOpacity>
-                );
-              }}
+                    <Text style={styles.personRole}>{formatRole(item.role)}</Text>
+                  </View>
+                  <Feather color={adminColors.textMuted} name="chevron-right" size={15} />
+                </Pressable>
+              )}
             />
           )}
         </View>
       </Modal>
-    </View>
-  );
-}
-
-function SummaryItem({
-  label,
-  value,
-  loading,
-}: {
-  label: string;
-  value: number;
-  loading: boolean;
-}) {
-  return (
-    <View style={styles.summaryItem}>
-      <Text style={styles.summaryValue}>{loading ? '–' : value}</Text>
-      <Text style={styles.summaryLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function getInitials(firstName: string | null, lastName: string | null) {
-  return (
-    [firstName, lastName]
-      .filter(Boolean)
-      .map((name) => name?.charAt(0).toUpperCase())
-      .join('')
-      .slice(0, 2) || '?'
+    </>
   );
 }
 
 function formatRole(role: UserProfile['role']) {
-  if (role === 'owner') return 'Owner';
-  if (role === 'trainer') return 'Trainer';
-  return 'Kunde';
+  if (role === 'owner') return 'Admin';
+  if (role === 'trainer') return 'Entrenador';
+  return 'Cliente';
 }
 
-function formatStatus(status: UserProfile['status']) {
-  if (status === 'approved') return 'Genehmigt';
-  if (status === 'rejected') return 'Abgelehnt';
-  return 'Ausstehend';
+function hasRole(profile: UserProfile, role: UserRole['role'], assignments: UserRole[]) {
+  return (
+    profile.role === role ||
+    assignments.some(
+      (assignment) => assignment.user_id === profile.user_id && assignment.role === role
+    )
+  );
+}
+
+function formatRoles(profile: UserProfile, assignments: UserRole[]) {
+  const roles = new Set<UserRole['role']>([
+    profile.role,
+    ...assignments
+      .filter((assignment) => assignment.user_id === profile.user_id)
+      .map((assignment) => assignment.role),
+  ]);
+  return Array.from(roles).map(formatRole).join(' · ');
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: AdminColors.background,
-    flex: 1,
+  sectionMeta: {
+    ...adminType.label,
   },
-  content: {
-    paddingHorizontal: 18,
+  listCard: {
+    paddingBottom: 0,
+    paddingTop: 0,
   },
-  eyebrow: {
-    color: AdminColors.primary,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.4,
-  },
-  title: {
-    color: AdminColors.textPrimary,
-    fontSize: 30,
-    fontWeight: '800',
-    letterSpacing: -0.8,
-    marginTop: 8,
-  },
-  subtitle: {
-    color: AdminColors.textMuted,
-    fontSize: 15,
-    marginTop: 7,
-  },
-  summary: {
+  personRow: {
     alignItems: 'center',
-    backgroundColor: AdminColors.surface,
-    borderColor: AdminColors.border,
-    borderRadius: 18,
-    borderWidth: 1,
+    borderBottomColor: adminColors.border,
+    borderBottomWidth: adminHairline,
     flexDirection: 'row',
-    marginTop: 24,
-    paddingVertical: 16,
-  },
-  summaryItem: {
-    alignItems: 'center',
-    flex: 1,
-    paddingHorizontal: 5,
-  },
-  summaryValue: {
-    color: AdminColors.textPrimary,
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  summaryLabel: {
-    color: AdminColors.textMuted,
-    fontSize: 10,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  summaryDivider: {
-    backgroundColor: AdminColors.border,
-    height: 32,
-    width: 1,
-  },
-  sectionTitle: {
-    color: AdminColors.textPrimary,
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-    marginTop: 30,
-  },
-  tileGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 10,
-    justifyContent: 'space-between',
-    marginTop: 15,
+    minHeight: 54,
   },
-  recentSection: {
+  personCopy: {
+    flex: 1,
+    flexShrink: 1,
+  },
+  personName: {
+    ...adminType.rowTitle,
+  },
+  personRole: {
+    ...adminType.secondary,
     marginTop: 2,
   },
-  sectionHeader: {
-    alignItems: 'baseline',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  sectionLink: {
-    color: AdminColors.primary,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  recentList: {
-    backgroundColor: AdminColors.surface,
-    borderColor: AdminColors.border,
-    borderRadius: 18,
-    borderWidth: 1,
-    marginTop: 14,
-    overflow: 'hidden',
-  },
-  recentRow: {
+  showAll: {
     alignItems: 'center',
-    flexDirection: 'row',
-    minHeight: 76,
-    paddingHorizontal: 14,
-  },
-  recentRowBorder: {
-    borderTopColor: AdminColors.border,
-    borderTopWidth: 1,
-  },
-  recentRowPressed: {
-    backgroundColor: AdminColors.surfaceRaised,
-  },
-  recentTime: {
-    alignItems: 'center',
-    backgroundColor: AdminColors.primaryMuted,
-    borderRadius: 10,
+    minHeight: 43,
     justifyContent: 'center',
-    marginRight: 12,
-    minHeight: 38,
-    paddingHorizontal: 9,
   },
-  recentTimeText: {
-    color: AdminColors.primary,
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  recentCopy: {
-    flex: 1,
-  },
-  recentName: {
-    color: AdminColors.textPrimary,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  recentStatus: {
-    color: AdminColors.textMuted,
+  showAllText: {
+    color: adminColors.amber,
     fontSize: 12,
-    marginTop: 4,
+    fontWeight: '500',
   },
-  chevron: {
-    color: AdminColors.textMuted,
-    fontSize: 20,
+  emptySearch: {
+    ...adminType.secondary,
+    paddingVertical: 20,
+    textAlign: 'center',
   },
-  developmentCard: {
+  error: {
+    color: adminColors.urgent,
+    fontSize: 11,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  settingRow: {
     alignItems: 'center',
-    backgroundColor: AdminColors.surface,
-    borderColor: '#423A00',
-    borderRadius: 18,
-    borderWidth: 1,
+    borderBottomColor: adminColors.border,
+    borderBottomWidth: adminHairline,
     flexDirection: 'row',
-    marginTop: 28,
-    padding: 14,
+    gap: 10,
+    minHeight: 49,
   },
-  developmentIcon: {
+  settingIcon: {
     alignItems: 'center',
-    backgroundColor: AdminColors.primaryMuted,
-    borderRadius: 12,
-    height: 42,
+    height: 28,
     justifyContent: 'center',
-    marginRight: 12,
-    width: 42,
+    width: 28,
   },
-  developmentFallback: {
-    color: AdminColors.primary,
-    fontSize: 20,
-  },
-  developmentCopy: {
+  settingLabel: {
+    ...adminType.rowTitle,
     flex: 1,
-    paddingRight: 8,
+    flexShrink: 1,
   },
-  developmentEyebrow: {
-    color: AdminColors.primary,
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.8,
+  devTitle: {
+    ...adminType.rowTitle,
   },
-  developmentTitle: {
-    color: AdminColors.textPrimary,
-    fontSize: 15,
-    fontWeight: '800',
-    marginTop: 3,
+  devText: {
+    ...adminType.secondary,
+    lineHeight: 17,
+    marginTop: 5,
   },
-  developmentText: {
-    color: AdminColors.textMuted,
-    fontSize: 11,
-    lineHeight: 15,
-    marginTop: 3,
+  devButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: adminColors.amber,
+    borderRadius: adminRadius.input,
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
-  developmentButton: {
-    borderColor: AdminColors.primary,
-    borderRadius: 9,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
+  devButtonText: {
+    color: adminColors.amberOn,
+    fontSize: 12,
+    fontWeight: '500',
   },
-  developmentButtonText: {
-    color: AdminColors.primary,
-    fontSize: 11,
-    fontWeight: '800',
+  signOutButton: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 9,
+    minHeight: 42,
+  },
+  signOutText: {
+    color: adminColors.urgent,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  disabled: {
+    opacity: 0.45,
   },
   modal: {
-    backgroundColor: AdminColors.background,
+    backgroundColor: adminColors.bgPage,
     flex: 1,
-    paddingTop: 24,
+    paddingHorizontal: 20,
   },
   modalHeader: {
-    alignItems: 'flex-start',
-    borderBottomColor: AdminColors.border,
-    borderBottomWidth: 1,
+    alignItems: 'center',
     flexDirection: 'row',
-    padding: 20,
+    justifyContent: 'space-between',
+    marginBottom: 18,
   },
-  modalHeading: {
-    flex: 1,
-    paddingRight: 12,
+  modalEyebrow: {
+    ...adminType.eyebrow,
   },
   modalTitle: {
-    color: AdminColors.textPrimary,
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  modalSubtitle: {
-    color: AdminColors.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
+    ...adminType.section,
     marginTop: 4,
   },
   modalClose: {
-    color: AdminColors.primary,
-    fontSize: 14,
-    fontWeight: '700',
-    paddingVertical: 5,
+    color: adminColors.amber,
+    fontSize: 13,
+    fontWeight: '500',
   },
-  modalLoading: {
+  pickerRow: {
     alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
-  },
-  profileList: {
-    gap: 10,
-    padding: 16,
-  },
-  profileRow: {
-    alignItems: 'center',
-    backgroundColor: AdminColors.surface,
-    borderColor: AdminColors.border,
-    borderRadius: 14,
-    borderWidth: 1,
+    borderBottomColor: adminColors.border,
+    borderBottomWidth: adminHairline,
     flexDirection: 'row',
-    padding: 14,
+    gap: 10,
+    minHeight: 56,
   },
-  profileAvatar: {
-    alignItems: 'center',
-    backgroundColor: AdminColors.surfaceRaised,
-    borderRadius: 19,
-    height: 38,
-    justifyContent: 'center',
-    marginRight: 11,
-    width: 38,
-  },
-  profileAvatarText: {
-    color: AdminColors.textSecondary,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  profileCopy: {
-    flex: 1,
-  },
-  profileName: {
-    color: AdminColors.textPrimary,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  profileMeta: {
-    color: AdminColors.textMuted,
-    fontSize: 12,
-    marginTop: 3,
-  },
-  profileAction: {
-    color: AdminColors.primary,
-    fontSize: 12,
-    fontWeight: '800',
+  pressed: {
+    opacity: 0.7,
   },
 });

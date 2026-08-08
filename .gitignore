@@ -9,6 +9,9 @@ dist/
 web-build/
 expo-env.d.ts
 
+# Supabase CLI
+/supabase/.temp/
+
 # Native
 .kotlin/
 *.orig.*
@@ -42,3 +45,14 @@ example
 # generated native folders
 /ios
 /android
+
+# personal / office files
+*.xlsx
+*.xls
+*.docx
+*.odt
+*.pdf
+Notizen/
+
+# log files
+npm-install.log

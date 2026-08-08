@@ -1,15 +1,13 @@
+import Feather from '@expo/vector-icons/Feather';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-const COLORS = {
-  background: '#080808',
-  surface: '#141414',
-  surfaceRaised: '#1C1C1C',
-  border: '#2A2A2A',
-  primary: '#F2C300',
-  primaryPressed: '#D8AE00',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#B5B5B5',
-};
+import { ProgressBar } from '@/components/admin/admin-ui';
+import {
+  adminColors,
+  adminHairline,
+  adminRadius,
+  adminType,
+} from '@/constants/admin-theme';
 
 type Requester = {
   firstName: string;
@@ -40,8 +38,8 @@ export function AdminRequestCard({
   total,
   isFull = false,
   disabled = false,
-  confirmLabel = 'Bestätigen',
-  rejectLabel = 'Ablehnen',
+  confirmLabel = 'Aceptar',
+  rejectLabel = 'Rechazar',
   onConfirm,
   onReject,
 }: AdminRequestCardProps) {
@@ -56,282 +54,174 @@ export function AdminRequestCard({
 
   return (
     <View style={styles.card}>
-      <View pointerEvents="none" style={styles.lightEdge} />
-
-      <View style={styles.content}>
-        <View>
+      <View style={styles.header}>
+        <View style={styles.timeBlock}>
           <Text style={styles.time}>
             {start} – {end}
           </Text>
-
           <View style={styles.dateRow}>
-            <View style={styles.calendarIcon} accessibilityElementsHidden>
-              <View style={styles.calendarTop} />
-              <View style={styles.calendarDot} />
-            </View>
+            <Feather color={adminColors.iconDefault} name="calendar" size={13} />
             <Text style={styles.date}>{prettyDate}</Text>
           </View>
         </View>
-
-        <View style={styles.divider} />
-
-        <View style={styles.userRow}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials}</Text>
+        {isFull ? (
+          <View style={styles.fullBadge}>
+            <Text style={styles.fullBadgeText}>Lleno</Text>
           </View>
+        ) : null}
+      </View>
 
-          <View style={styles.userContent}>
-            <Text style={styles.userName} numberOfLines={1}>
-              {fullName || 'Unbekannter Benutzer'}
-            </Text>
-            <Text style={styles.capacityText}>
-              <Text style={styles.capacityStrong}>
-                {booked} / {total} Plätze{' '}
-              </Text>
-              <Text>belegt</Text>
-            </Text>
-            <CapacityBar booked={booked} total={total} />
-          </View>
+      <View style={styles.divider} />
+
+      <View style={styles.userRow}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{initials}</Text>
         </View>
-
-        <View style={styles.actions}>
-          <Pressable
-            accessibilityRole="button"
-            disabled={confirmDisabled}
-            onPress={onConfirm}
-            style={({ pressed }) => [
-              styles.button,
-              styles.confirmButton,
-              pressed && !confirmDisabled && styles.confirmButtonPressed,
-              confirmDisabled && styles.buttonDisabled,
-            ]}>
-            <Text style={styles.confirmButtonText}>{isFull ? 'Ausgebucht' : `✓  ${confirmLabel}`}</Text>
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
-            disabled={disabled}
-            onPress={onReject}
-            style={({ pressed }) => [
-              styles.button,
-              styles.rejectButton,
-              pressed && !disabled && styles.rejectButtonPressed,
-              disabled && styles.buttonDisabled,
-            ]}>
-            <Text style={styles.rejectButtonText}>×  {rejectLabel}</Text>
-          </Pressable>
+        <View style={styles.userContent}>
+          <Text style={styles.userName} numberOfLines={2}>
+            {fullName || 'Usuario desconocido'}
+          </Text>
+          <ProgressBar capacity={total} taken={booked} />
         </View>
       </View>
-    </View>
-  );
-}
 
-function CapacityBar({ booked, total }: { booked: number; total: number }) {
-  const segmentCount = 10;
-  const ratio = total > 0 ? Math.min(Math.max(booked / total, 0), 1) : 0;
-  const filledSegments = Math.round(ratio * segmentCount);
-
-  return (
-    <View
-      accessibilityLabel={`${booked} von ${total} Plätzen belegt`}
-      accessibilityRole="progressbar"
-      style={styles.capacityBar}>
-      {Array.from({ length: segmentCount }).map((_, index) => (
-        <View
-          key={index}
-          style={[
-            styles.capacitySegment,
-            index < filledSegments ? styles.capacitySegmentFilled : styles.capacitySegmentEmpty,
-          ]}
-        />
-      ))}
+      <View style={styles.actions}>
+        <Pressable
+          disabled={confirmDisabled}
+          onPress={onConfirm}
+          style={({ pressed }) => [
+            styles.button,
+            styles.confirmButton,
+            pressed && styles.pressed,
+            confirmDisabled && styles.disabled,
+          ]}>
+          <Feather color={adminColors.amberOn} name="check" size={14} />
+          <Text style={styles.confirmText}>{isFull ? 'Sin plazas' : confirmLabel}</Text>
+        </Pressable>
+        <Pressable
+          disabled={disabled}
+          onPress={onReject}
+          style={({ pressed }) => [
+            styles.button,
+            styles.rejectButton,
+            pressed && styles.pressed,
+            disabled && styles.disabled,
+          ]}>
+          <Feather color={adminColors.textMuted} name="x" size={14} />
+          <Text style={styles.rejectText}>{rejectLabel}</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    alignSelf: 'center',
-    width: '96%',
-    maxWidth: 520,
-    position: 'relative',
-    backgroundColor: COLORS.surface,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderLeftWidth: 2,
-    borderLeftColor: COLORS.primary,
-    marginBottom: 16,
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    shadowOffset: { width: -10, height: 0 },
-    elevation: 2,
+    backgroundColor: adminColors.bgCard,
+    borderColor: adminColors.border,
+    borderRadius: adminRadius.card,
+    borderWidth: adminHairline,
+    marginBottom: 8,
+    padding: 14,
   },
-  lightEdge: {
-    position: 'absolute',
-    left: -1,
-    top: 27,
-    bottom: 27,
-    width: 2,
-    backgroundColor: 'rgba(242, 195, 0, 0.26)',
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.99,
-    shadowRadius: 30,
-    shadowOffset: { width: 0, height: 0 },
-    zIndex: 2,
-    elevation: 12,
+  header: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
   },
-  content: {
-    zIndex: 1,
-    paddingHorizontal: 22,
-    paddingTop: 22,
-    paddingBottom: 24,
+  timeBlock: {
+    flex: 1,
+    flexShrink: 1,
   },
   time: {
-    color: COLORS.textPrimary,
-    fontSize: 28,
-    fontWeight: '800',
-    letterSpacing: -0.6,
+    ...adminType.rowTitle,
   },
   dateRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    marginTop: 12,
-  },
-  calendarIcon: {
-    alignItems: 'center',
-    backgroundColor: COLORS.surfaceRaised,
-    borderRadius: 7,
-    height: 24,
-    justifyContent: 'center',
-    marginRight: 10,
-    overflow: 'hidden',
-    width: 24,
-  },
-  calendarTop: {
-    backgroundColor: COLORS.primary,
-    height: 3,
-    left: 5,
-    position: 'absolute',
-    right: 5,
-    top: 5,
-  },
-  calendarDot: {
-    backgroundColor: COLORS.textSecondary,
-    borderRadius: 2,
-    height: 4,
-    marginTop: 5,
-    width: 4,
+    gap: 7,
+    marginTop: 6,
   },
   date: {
-    color: COLORS.textSecondary,
-    flex: 1,
-    fontSize: 15,
+    ...adminType.secondary,
+    flexShrink: 1,
+  },
+  fullBadge: {
+    backgroundColor: adminColors.urgentTint,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  fullBadgeText: {
+    color: adminColors.urgent,
+    fontSize: 9,
+    fontWeight: '500',
   },
   divider: {
-    backgroundColor: COLORS.border,
-    height: 1,
-    marginVertical: 18,
-    opacity: 0.9,
+    backgroundColor: adminColors.border,
+    height: adminHairline,
+    marginVertical: 12,
   },
   userRow: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
     flexDirection: 'row',
+    gap: 10,
   },
   avatar: {
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceRaised,
-    borderColor: '#333333',
-    borderRadius: 20,
-    borderWidth: 1,
-    height: 40,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 16,
+    height: 32,
     justifyContent: 'center',
-    marginRight: 12,
-    width: 40,
+    width: 32,
   },
   avatarText: {
-    color: COLORS.textSecondary,
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0.3,
+    color: adminColors.textPrimary,
+    fontSize: 11,
+    fontWeight: '500',
   },
   userContent: {
     flex: 1,
-    minWidth: 0,
+    flexShrink: 1,
+    gap: 8,
   },
   userName: {
-    color: COLORS.textPrimary,
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-  },
-  capacityText: {
-    color: COLORS.textSecondary,
-    fontSize: 15,
-    marginTop: 8,
-  },
-  capacityStrong: {
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  capacityBar: {
-    flexDirection: 'row',
-    gap: 5,
-    marginTop: 11,
-    marginBottom: 2,
-  },
-  capacitySegment: {
-    borderRadius: 999,
-    flex: 1,
-    height: 6,
-  },
-  capacitySegmentFilled: {
-    backgroundColor: COLORS.primary,
-  },
-  capacitySegmentEmpty: {
-    backgroundColor: COLORS.border,
-    opacity: 0.7,
+    ...adminType.rowTitle,
   },
   actions: {
     flexDirection: 'row',
-    marginTop: 24,
+    gap: 8,
+    marginTop: 14,
   },
   button: {
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: adminRadius.input,
     flex: 1,
+    flexDirection: 'row',
+    gap: 6,
     justifyContent: 'center',
-    minHeight: 48,
-    paddingHorizontal: 10,
+    minHeight: 40,
   },
   confirmButton: {
-    backgroundColor: COLORS.primary,
-    marginRight: 8,
-  },
-  confirmButtonPressed: {
-    backgroundColor: COLORS.primaryPressed,
-    transform: [{ scale: 0.98 }],
-  },
-  confirmButtonText: {
-    color: COLORS.background,
-    fontSize: 14,
-    fontWeight: '800',
+    backgroundColor: adminColors.amber,
   },
   rejectButton: {
-    borderColor: '#454545',
-    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    borderWidth: adminHairline,
   },
-  rejectButtonPressed: {
-    backgroundColor: '#232323',
-    transform: [{ scale: 0.98 }],
+  confirmText: {
+    color: adminColors.amberOn,
+    fontSize: 12,
+    fontWeight: '500',
   },
-  rejectButtonText: {
-    color: COLORS.textPrimary,
-    fontSize: 14,
-    fontWeight: '700',
+  rejectText: {
+    color: adminColors.textMuted,
+    fontSize: 12,
+    fontWeight: '500',
   },
-  buttonDisabled: {
+  pressed: {
+    opacity: 0.7,
+  },
+  disabled: {
     opacity: 0.45,
   },
 });
