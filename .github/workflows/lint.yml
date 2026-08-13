@@ -30,4 +30,4 @@ jobs:
         run: npm run lint --if-present
       
       - name: Check TypeScript
-        run: npx tsc --noEmit --if-present
+        run: npx tsc --noEmit

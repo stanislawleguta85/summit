@@ -1,70 +1,59 @@
-import React, { useEffect, useState } from 'react';
+import Feather from '@expo/vector-icons/Feather';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
-  FlatList,
   Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AdminColors } from '@/constants/admin-theme';
+import {
+  AdminCard,
+  AdminScrollScreen,
+  EmptyState,
+  InitialAvatar,
+  SkeletonBlock,
+} from '@/components/admin/admin-ui';
+import {
+  adminColors,
+  adminHairline,
+  adminRadius,
+  adminType,
+} from '@/constants/admin-theme';
 import { useAuth } from '@/context/auth-context';
-import { supabase, type UserProfile } from '@/lib/supabase';
+import { useAdminData } from '@/hooks/use-admin-data';
+import type { UserProfile } from '@/lib/supabase';
 
 export default function PendingMembersScreen() {
-  const insets = useSafeAreaInsets();
-  const { authenticatedUserProfile, approveUser, rejectUser } = useAuth();
-  const [pendingUsers, setPendingUsers] = useState<UserProfile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const router = useRouter();
+  const { approveUser, hasPermission, rejectUser } = useAuth();
+  const canReviewMembers = hasPermission('members', 'approve', 'all');
+  const { profiles, loading, refreshing, error, reload } = useAdminData();
   const [reviewingUserId, setReviewingUserId] = useState<string | null>(null);
+  const pendingUsers = profiles.filter((profile) => profile.status === 'pending');
 
-  const loadPendingUsers = async () => {
-    if (!authenticatedUserProfile?.company_id) {
-      setLoading(false);
-      setRefreshing(false);
-      return;
-    }
+  const reviewUser = async (profile: UserProfile, decision: 'approved' | 'rejected') => {
+    if (!canReviewMembers) return;
 
-    try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('company_id', authenticatedUserProfile.company_id)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setPendingUsers((data ?? []) as UserProfile[]);
-    } catch (error) {
-      console.error('Error loading pending users:', error);
-      Alert.alert('Fehler', 'Die ausstehenden Mitglieder konnten nicht geladen werden.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    void loadPendingUsers();
-  }, [authenticatedUserProfile?.company_id]);
-
-  const reviewUser = async (userId: string, decision: 'approved' | 'rejected') => {
-    setReviewingUserId(userId);
-
+    setReviewingUserId(profile.user_id);
     try {
       if (decision === 'approved') {
-        await approveUser(userId);
+        await approveUser(profile.user_id);
       } else {
-        await rejectUser(userId);
+        await rejectUser(profile.user_id);
       }
-      await loadPendingUsers();
-    } catch (error: any) {
-      Alert.alert('Fehler', error.message || 'Die Entscheidung konnte nicht gespeichert werden.');
+      await reload();
+      if (pendingUsers.length === 1) {
+        router.replace('/admin');
+      }
+    } catch (reviewError: any) {
+      Alert.alert(
+        'Error',
+        reviewError.message || 'La decisión no se pudo guardar.'
+      );
     } finally {
       setReviewingUserId(null);
     }
@@ -72,280 +61,192 @@ export default function PendingMembersScreen() {
 
   const confirmDecision = (profile: UserProfile, decision: 'approved' | 'rejected') => {
     const fullName =
-      [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'diesen Benutzer';
+      [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'esta persona';
     const approve = decision === 'approved';
 
     Alert.alert(
-      approve ? 'Mitglied freigeben' : 'Registrierung ablehnen',
-      `Möchtest du ${fullName} wirklich ${approve ? 'freigeben' : 'ablehnen'}?`,
+      approve ? 'Aprobar membresía' : 'Rechazar registro',
+      `¿Quieres ${approve ? 'aprobar' : 'rechazar'} a ${fullName}?`,
       [
-        { text: 'Abbrechen', style: 'cancel' },
+        { text: 'Cancelar', style: 'cancel' },
         {
-          text: approve ? 'Freigeben' : 'Ablehnen',
+          text: approve ? 'Aprobar' : 'Rechazar',
           style: approve ? 'default' : 'destructive',
-          onPress: () => void reviewUser(profile.user_id, decision),
+          onPress: () => void reviewUser(profile, decision),
         },
       ]
     );
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator color={AdminColors.primary} size="large" />
-      </View>
-    );
-  }
-
   return (
-    <FlatList
-      contentContainerStyle={[
-        styles.content,
-        { paddingBottom: insets.bottom + 110 },
-        pendingUsers.length === 0 && styles.emptyContent,
-      ]}
-      data={pendingUsers}
-      keyExtractor={(item) => item.id}
+    <AdminScrollScreen
+      includeTopInset={false}
       refreshControl={
         <RefreshControl
+          onRefresh={reload}
           refreshing={refreshing}
-          tintColor={AdminColors.primary}
-          onRefresh={() => {
-            setRefreshing(true);
-            void loadPendingUsers();
-          }}
+          tintColor={adminColors.amber}
         />
-      }
-      ListHeaderComponent={
-        <View style={styles.header}>
-          <Text style={styles.eyebrow}>FREIGABEN</Text>
-          <Text style={styles.title}>{pendingUsers.length} neue Mitglieder</Text>
-          <Text style={styles.subtitle}>
-            Prüfe neue Registrierungen und erteile den Zugang zum Studio.
-          </Text>
+      }>
+      <View style={styles.header}>
+        <Text style={styles.eyebrow}>NUEVAS MEMBRESÍAS</Text>
+        <Text style={styles.title}>{pendingUsers.length} pendientes</Text>
+        <Text style={styles.subtitle}>
+          Revisa los registros nuevos y concede acceso al estudio.
+        </Text>
+      </View>
+
+      {loading ? (
+        <>
+          <SkeletonBlock height={126} />
+          <SkeletonBlock height={126} />
+        </>
+      ) : error ? (
+        <AdminCard>
+          <Text style={styles.error}>{error}</Text>
+        </AdminCard>
+      ) : pendingUsers.length === 0 ? (
+        <EmptyState
+          message="Ahora mismo no hay nadie esperando aprobación."
+          title="Todo al día"
+        />
+      ) : (
+        <View style={styles.list}>
+          {pendingUsers.map((profile) => {
+            const fullName =
+              [profile.first_name, profile.last_name].filter(Boolean).join(' ') ||
+              'Usuario desconocido';
+            const reviewing = reviewingUserId === profile.user_id;
+
+            return (
+              <AdminCard key={profile.id}>
+                <View style={styles.memberRow}>
+                  <InitialAvatar
+                    firstName={profile.first_name}
+                    lastName={profile.last_name}
+                  />
+                  <View style={styles.memberCopy}>
+                    <Text style={styles.memberName} numberOfLines={2}>
+                      {fullName}
+                    </Text>
+                    <Text style={styles.memberMeta}>
+                      Registrado el{' '}
+                      {new Date(profile.created_at).toLocaleDateString('es-ES')}
+                    </Text>
+                  </View>
+                </View>
+                {canReviewMembers ? <View style={styles.actions}>
+                  <Pressable
+                    disabled={reviewing}
+                    onPress={() => confirmDecision(profile, 'approved')}
+                    style={({ pressed }) => [
+                      styles.button,
+                      styles.approveButton,
+                      pressed && styles.pressed,
+                      reviewing && styles.disabled,
+                    ]}>
+                    <Feather color={adminColors.amberOn} name="check" size={14} />
+                    <Text style={styles.approveText}>
+                      {reviewing ? 'Guardando…' : 'Aprobar'}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    disabled={reviewing}
+                    onPress={() => confirmDecision(profile, 'rejected')}
+                    style={({ pressed }) => [
+                      styles.button,
+                      styles.rejectButton,
+                      pressed && styles.pressed,
+                      reviewing && styles.disabled,
+                    ]}>
+                    <Feather color={adminColors.textMuted} name="x" size={14} />
+                    <Text style={styles.rejectText}>Rechazar</Text>
+                  </Pressable>
+                </View> : null}
+              </AdminCard>
+            );
+          })}
         </View>
-      }
-      renderItem={({ item }) => {
-        const isReviewing = reviewingUserId === item.user_id;
-        const fullName =
-          [item.first_name, item.last_name].filter(Boolean).join(' ') ||
-          'Unbekannter Benutzer';
-
-        return (
-          <View style={styles.card}>
-            <View style={styles.memberRow}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {getInitials(item.first_name, item.last_name)}
-                </Text>
-              </View>
-              <View style={styles.memberCopy}>
-                <Text style={styles.name}>{fullName}</Text>
-                <Text style={styles.role}>{formatRole(item.role)}</Text>
-                <Text style={styles.date}>
-                  Registriert am {new Date(item.created_at).toLocaleDateString('de-DE')}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.actions}>
-              <Pressable
-                disabled={isReviewing}
-                onPress={() => confirmDecision(item, 'approved')}
-                style={({ pressed }) => [
-                  styles.button,
-                  styles.approveButton,
-                  pressed && styles.buttonPressed,
-                  isReviewing && styles.buttonDisabled,
-                ]}>
-                <Text style={styles.approveText}>
-                  {isReviewing ? 'Wird gespeichert …' : '✓  Freigeben'}
-                </Text>
-              </Pressable>
-              <Pressable
-                disabled={isReviewing}
-                onPress={() => confirmDecision(item, 'rejected')}
-                style={({ pressed }) => [
-                  styles.button,
-                  styles.rejectButton,
-                  pressed && styles.rejectPressed,
-                  isReviewing && styles.buttonDisabled,
-                ]}>
-                <Text style={styles.rejectText}>×  Ablehnen</Text>
-              </Pressable>
-            </View>
-          </View>
-        );
-      }}
-      ListEmptyComponent={
-        <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>Alles erledigt</Text>
-          <Text style={styles.emptyText}>Aktuell wartet niemand auf eine Freigabe.</Text>
-        </View>
-      }
-      style={styles.screen}
-    />
+      )}
+    </AdminScrollScreen>
   );
-}
-
-function getInitials(firstName: string | null, lastName: string | null) {
-  return (
-    [firstName, lastName]
-      .filter(Boolean)
-      .map((name) => name?.charAt(0).toUpperCase())
-      .join('')
-      .slice(0, 2) || '?'
-  );
-}
-
-function formatRole(role: UserProfile['role']) {
-  if (role === 'owner') return 'Owner';
-  if (role === 'trainer') return 'Trainer';
-  return 'Kunde';
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: AdminColors.background,
-  },
-  content: {
-    paddingHorizontal: 18,
-    paddingTop: 20,
-  },
-  emptyContent: {
-    flexGrow: 1,
-  },
-  loading: {
-    alignItems: 'center',
-    backgroundColor: AdminColors.background,
-    flex: 1,
-    justifyContent: 'center',
-  },
   header: {
-    marginBottom: 22,
+    marginBottom: 18,
   },
   eyebrow: {
-    color: AdminColors.primary,
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.2,
+    ...adminType.eyebrow,
   },
   title: {
-    color: AdminColors.textPrimary,
-    fontSize: 27,
-    fontWeight: '800',
-    letterSpacing: -0.6,
-    marginTop: 7,
+    ...adminType.title,
+    marginTop: 6,
   },
   subtitle: {
-    color: AdminColors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 7,
+    ...adminType.secondary,
+    lineHeight: 17,
+    marginTop: 6,
   },
-  card: {
-    backgroundColor: AdminColors.surface,
-    borderColor: AdminColors.border,
-    borderLeftColor: AdminColors.primary,
-    borderLeftWidth: 2,
-    borderRadius: 18,
-    borderWidth: 1,
-    marginBottom: 12,
-    padding: 16,
+  list: {
+    gap: 8,
   },
   memberRow: {
     alignItems: 'center',
     flexDirection: 'row',
-  },
-  avatar: {
-    alignItems: 'center',
-    backgroundColor: AdminColors.surfaceRaised,
-    borderRadius: 23,
-    height: 46,
-    justifyContent: 'center',
-    marginRight: 12,
-    width: 46,
-  },
-  avatarText: {
-    color: AdminColors.textSecondary,
-    fontSize: 13,
-    fontWeight: '800',
+    gap: 10,
   },
   memberCopy: {
     flex: 1,
+    flexShrink: 1,
   },
-  name: {
-    color: AdminColors.textPrimary,
-    fontSize: 17,
-    fontWeight: '700',
+  memberName: {
+    ...adminType.rowTitle,
   },
-  role: {
-    color: AdminColors.primary,
-    fontSize: 12,
-    fontWeight: '700',
+  memberMeta: {
+    ...adminType.secondary,
     marginTop: 3,
-  },
-  date: {
-    color: AdminColors.textMuted,
-    fontSize: 11,
-    marginTop: 4,
   },
   actions: {
     flexDirection: 'row',
-    marginTop: 17,
+    gap: 8,
+    marginTop: 14,
   },
   button: {
     alignItems: 'center',
-    borderRadius: 11,
+    borderRadius: adminRadius.input,
     flex: 1,
+    flexDirection: 'row',
+    gap: 6,
     justifyContent: 'center',
-    minHeight: 46,
+    minHeight: 40,
   },
   approveButton: {
-    backgroundColor: AdminColors.primary,
-    marginRight: 8,
+    backgroundColor: adminColors.amber,
   },
   rejectButton: {
-    borderColor: '#444444',
-    borderWidth: 1,
-  },
-  buttonPressed: {
-    opacity: 0.82,
-    transform: [{ scale: 0.98 }],
-  },
-  rejectPressed: {
-    backgroundColor: AdminColors.surfaceRaised,
-  },
-  buttonDisabled: {
-    opacity: 0.45,
+    borderColor: 'rgba(255,255,255,0.15)',
+    borderWidth: adminHairline,
   },
   approveText: {
-    color: AdminColors.background,
+    color: adminColors.amberOn,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '500',
   },
   rejectText: {
-    color: AdminColors.textPrimary,
+    color: adminColors.textMuted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '500',
   },
-  empty: {
-    alignItems: 'center',
-    backgroundColor: AdminColors.surface,
-    borderColor: AdminColors.border,
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 28,
-  },
-  emptyTitle: {
-    color: AdminColors.textPrimary,
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  emptyText: {
-    color: AdminColors.textMuted,
-    fontSize: 13,
-    marginTop: 6,
+  error: {
+    color: adminColors.urgent,
+    fontSize: 12,
     textAlign: 'center',
+  },
+  pressed: {
+    opacity: 0.7,
+  },
+  disabled: {
+    opacity: 0.45,
   },
 });

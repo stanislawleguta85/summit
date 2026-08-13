@@ -5,16 +5,15 @@ import { AdminColors } from '@/constants/admin-theme';
 import { useAuth } from '@/context/auth-context';
 
 export default function AdminLayout() {
-  const { authenticatedUserProfile } = useAuth();
-  const isOwner =
-    authenticatedUserProfile?.role === 'owner' &&
-    authenticatedUserProfile.status === 'approved';
+  const { hasPermission, userProfile } = useAuth();
+  const canReadMembers =
+    hasPermission('members', 'read', 'all') && userProfile?.status === 'approved';
 
-  if (!isOwner) {
+  if (!canReadMembers) {
     return (
       <View style={styles.denied}>
-        <Text style={styles.deniedTitle}>Zugriff verweigert</Text>
-        <Text style={styles.deniedText}>Dieser Bereich ist nur für Studio-Owner verfügbar.</Text>
+        <Text style={styles.deniedTitle}>Acceso restringido</Text>
+        <Text style={styles.deniedText}>Esta sección solo está disponible para admins.</Text>
       </View>
     );
   }
@@ -27,13 +26,17 @@ export default function AdminLayout() {
         headerShadowVisible: false,
         headerStyle: { backgroundColor: AdminColors.background },
         headerTintColor: AdminColors.textPrimary,
-        headerTitleStyle: { color: AdminColors.textPrimary, fontWeight: '700' },
+        headerTitleStyle: { color: AdminColors.textPrimary, fontWeight: '500' },
       }}>
       <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="booking-requests" options={{ title: 'Buchungsanfragen' }} />
-      <Stack.Screen name="pending-members" options={{ title: 'Neue Mitglieder' }} />
-      <Stack.Screen name="courses" options={{ title: 'Kurse & Zeitslots' }} />
-      <Stack.Screen name="members" options={{ title: 'Mitglieder & Trainer' }} />
+      <Stack.Screen name="booking-requests" options={{ title: 'Solicitudes' }} />
+      <Stack.Screen name="pending-members" options={{ title: 'Nuevas membresías' }} />
+      <Stack.Screen name="courses" options={{ title: 'Clases' }} />
+      <Stack.Screen name="members" options={{ title: 'Personal y clientes' }} />
+      <Stack.Screen name="trainers" options={{ title: 'Entrenadores' }} />
+      <Stack.Screen name="clients" options={{ title: 'Clientes' }} />
+      <Stack.Screen name="new-staff" options={{ title: 'Nueva cuenta' }} />
+      <Stack.Screen name="changes" options={{ title: 'Mis cambios' }} />
     </Stack>
   );
 }
