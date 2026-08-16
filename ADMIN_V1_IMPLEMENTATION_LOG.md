@@ -1,11 +1,11 @@
-﻿# Summit Admin V1 â€“ Umsetzungsprotokoll
+# Summit Admin V1 – Umsetzungsprotokoll
 
-Stand: 26. Juli 2026
+Stand: 26. Juli 2026  
 Projekt: Summit (`Expo SDK 54`, React Native, Expo Router, TypeScript, Supabase)
 
 ## 1. Ausgangslage und Sicherung
 
-Vor der Umstellung wurde der vollstÃ¤ndige damalige Projektstand in Git gesichert.
+Vor der Umstellung wurde der vollständige damalige Projektstand in Git gesichert.
 
 - Snapshot-Commit: `b0229f7`
 - Commit-Nachricht: `snapshot: before admin v1 redesign`
@@ -13,11 +13,11 @@ Vor der Umstellung wurde der vollstÃ¤ndige damalige Projektstand in Git gesich
 - Sicherungs-Tag: `backup/pre-admin-redesign-2026-07-26`
 - Ausgangsbasis auf GitHub: `28230fc`
 
-Die Admin-V1-Ã„nderungen befinden sich derzeit als noch nicht eingecheckte Ã„nderungen auf
-`master`. Der Sicherungs-Branch und der Tag zeigen weiterhin unverÃ¤ndert auf den Stand vor
+Die Admin-V1-Änderungen befinden sich derzeit als noch nicht eingecheckte Änderungen auf
+`master`. Der Sicherungs-Branch und der Tag zeigen weiterhin unverändert auf den Stand vor
 der Umstellung.
 
-Vor einem spÃ¤teren Wechsel auf den Sicherungs-Branch mÃ¼ssen die aktuellen V1-Ã„nderungen
+Vor einem späteren Wechsel auf den Sicherungs-Branch müssen die aktuellen V1-Änderungen
 zuerst eingecheckt oder anderweitig gesichert werden.
 
 ## 2. Designgrundlage
@@ -27,30 +27,30 @@ Als Grundlage wurde die externe Spezifikation
 
 Wesentliche Vorgaben:
 
-- mobile Admin-OberflÃ¤che fÃ¼r iOS und Android
+- mobile Admin-Oberfläche für iOS und Android
 - Dark Mode
 - Sprache Spanisch (`es-ES`)
 - Amber als Marken- und Aktionsfarbe
-- Coral ausschlieÃŸlich fÃ¼r dringende ZustÃ¤nde
-- vier Owner-Tabs: `Home`, `Clases`, `MÃ©tricas`, `Admin`
+- Coral ausschließlich für dringende Zustände
+- vier Owner-Tabs: `Home`, `Clases`, `Métricas`, `Admin`
 - Verwendung Expo-Go-kompatibler Pakete
-- keine zusÃ¤tzlichen Chart-Bibliotheken
-- Safe-Area-Behandlung fÃ¼r iPhones und Android Edge-to-Edge
+- keine zusätzlichen Chart-Bibliotheken
+- Safe-Area-Behandlung für iPhones und Android Edge-to-Edge
 
 Die Router- und Safe-Area-Umsetzung wurde vor der Entwicklung mit der versionierten
 Expo-Dokumentation abgeglichen.
 
-## 3. RollenabhÃ¤ngige Navigation
+## 3. Rollenabhängige Navigation
 
 Die Navigation unterscheidet jetzt zwischen Ownern und anderen Rollen.
 
 ### Owner
 
-Owner sehen eine eigene Admin-OberflÃ¤che mit vier Tabs:
+Owner sehen eine eigene Admin-Oberfläche mit vier Tabs:
 
 1. `Home`
 2. `Clases`
-3. `MÃ©tricas`
+3. `Métricas`
 4. `Admin`
 
 Der aktive Tab verwendet einen Amber-Kreis hinter dem Icon. Alle Tabs besitzen denselben
@@ -58,13 +58,13 @@ Icon-Slot, damit die Beschriftungen gleich ausgerichtet bleiben.
 
 ### Trainer und Mitglieder
 
-Trainer und Mitglieder behalten die bisherige App-OberflÃ¤che mit den vorhandenen
+Trainer und Mitglieder behalten die bisherige App-Oberfläche mit den vorhandenen
 `Home`- und `Explore`-Tabs.
 
 ### Impersonation
 
-Beim Start einer Benutzeransicht wechselt die Navigation automatisch auf die OberflÃ¤che
-der ausgewÃ¤hlten Rolle. Der Entwickler-Banner wurde auf Spanisch angepasst. Die echte
+Beim Start einer Benutzeransicht wechselt die Navigation automatisch auf die Oberfläche
+der ausgewählten Rolle. Der Entwickler-Banner wurde auf Spanisch angepasst. Die echte
 Owner-Session bleibt im Hintergrund erhalten.
 
 Relevante Dateien:
@@ -81,12 +81,12 @@ Die bisherigen Admin-Farben wurden durch die Tokens aus der Spezifikation ersetz
 
 Umgesetzt wurden:
 
-- Seiten-, Karten- und inaktive HintergrÃ¼nde
+- Seiten-, Karten- und inaktive Hintergründe
 - Hairline-Rahmen
-- PrimÃ¤r-, SekundÃ¤r-, Muted- und Disabled-Texte
-- Amber-, Coral-, GrÃ¼n- und Orange-Statusfarben
-- Radien fÃ¼r Karten, Kalender, Eingaben, Chips und Badges
-- einheitliche AbstÃ¤nde
+- Primär-, Sekundär-, Muted- und Disabled-Texte
+- Amber-, Coral-, Grün- und Orange-Statusfarben
+- Radien für Karten, Kalender, Eingaben, Chips und Badges
+- einheitliche Abstände
 - Typografierollen mit den Gewichten `400` und `500`
 
 Gemeinsame Komponenten:
@@ -100,9 +100,9 @@ Gemeinsame Komponenten:
 - Fortschrittsbalken
 - Personen-Avatare
 - Chevron-Zeilen
-- PrimÃ¤r- und SekundÃ¤rbuttons
-- Skeleton-LadezustÃ¤nde
-- LeerzustÃ¤nde
+- Primär- und Sekundärbuttons
+- Skeleton-Ladezustände
+- Leerzustände
 
 Relevante Dateien:
 
@@ -112,18 +112,18 @@ Relevante Dateien:
 
 ## 5. Admin-Home
 
-Der Owner-Home-Screen wurde vollstÃ¤ndig neu aufgebaut.
+Der Owner-Home-Screen wurde vollständig neu aufgebaut.
 
 Enthalten:
 
 - Kopfzeile `SUMMIT ADMIN`
 - dynamisches heutiges Datum auf Spanisch
-- Icon-Button fÃ¼r Buchungsanfragen
-- Icon-Button fÃ¼r neue Mitgliedschaften
+- Icon-Button für Buchungsanfragen
+- Icon-Button für neue Mitgliedschaften
 - Nachrichten-Button
 - Monatskalender mit Montag als Wochenbeginn
 - Amber-Punkte an Tagen mit Kursen
-- auswÃ¤hlbarer Kalendertag
+- auswählbarer Kalendertag
 - Tagesagenda unter dem Kalender
 - Belegungsstatus:
   - `Plazas disponibles`
@@ -131,7 +131,7 @@ Enthalten:
   - `Casi lleno`
   - `Lleno`
 - aufklappbare Kurse mit Teilnehmerliste
-- Empty State `No hay clases este dÃ­a`
+- Empty State `No hay clases este día`
 - Pull-to-refresh
 - Skeleton-Ladezustand
 
@@ -150,15 +150,15 @@ Entwicklungs-Kursen.
 
 Enthalten:
 
-- Plus-Button fÃ¼r einen neuen Kurs
+- Plus-Button für einen neuen Kurs
 - Filter `Todos`, `Yoga`, `HIIT`, `Spinning`
 - Trainer, Wochentag und Uhrzeit
 - Status `Activo` oder `Borrador`
-- Belegungsbalken und KapazitÃ¤t
-- reduzierte Darstellung unverÃ¶ffentlichter EntwÃ¼rfe
+- Belegungsbalken und Kapazität
+- reduzierte Darstellung unveröffentlichter Entwürfe
 - Empty States
 - Pull-to-refresh
-- Skeleton-LadezustÃ¤nde
+- Skeleton-Ladezustände
 
 Bei bestehenden Supabase-Kursen wird die Kategorie derzeit anhand von Titel und
 Beschreibung erkannt, weil es im Datenbankschema noch kein Kategorie-Feld gibt.
@@ -170,7 +170,7 @@ Relevante Dateien:
 
 ## 7. Nuevo curso
 
-Der neue Kursdialog liegt auÃŸerhalb des Tab-Navigators. Dadurch wird auf diesem
+Der neue Kursdialog liegt außerhalb des Tab-Navigators. Dadurch wird auf diesem
 Detailscreen keine Bottom-Navigation angezeigt.
 
 Umgesetzt wurden:
@@ -181,18 +181,18 @@ Umgesetzt wurden:
 - Wiederholung `Una vez` / `Semanal`
 - Mehrfachauswahl der Wochentage
 - Start- und Endzeit
-- KapazitÃ¤t
+- Kapazität
 - Preis
 - Raum
 - Toggle `Lista de espera`
 - Toggle `Aprobar reservas`
 - Toggle `Publicar curso`
 - Aktionen `Borrador` und `Guardar curso`
-- Validierung fÃ¼r Kursname und KapazitÃ¤t
+- Validierung für Kursname und Kapazität
 
-Die zusÃ¤tzlichen V1-Felder kÃ¶nnen noch nicht in Supabase gespeichert werden, weil die
+Die zusätzlichen V1-Felder können noch nicht in Supabase gespeichert werden, weil die
 entsprechenden Datenbankspalten und Schreibfunktionen fehlen. Neue Kurse werden deshalb
-Ã¼ber AsyncStorage lokal auf dem jeweiligen GerÃ¤t gespeichert und anschlieÃŸend in
+über AsyncStorage lokal auf dem jeweiligen Gerät gespeichert und anschließend in
 `Clases` angezeigt.
 
 Relevante Dateien:
@@ -201,9 +201,9 @@ Relevante Dateien:
 - `src/lib/admin-course-store.ts`
 - `src/app/_layout.tsx`
 
-## 8. MÃ©tricas
+## 8. Métricas
 
-Der Metriken-Screen enthÃ¤lt:
+Der Metriken-Screen enthält:
 
 - Monatsauswahl
 - KPI-Raster
@@ -212,12 +212,12 @@ Der Metriken-Screen enthÃ¤lt:
 - abgeleitete Einnahmen
 - offene Rechnungen
 - Mitgliederentwicklung als Balkendiagramm
-- StoÃŸzeiten als Balkendiagramm
+- Stoßzeiten als Balkendiagramm
 - No-show-Rate
 - Austritte im Monat
 - kompakten Zwei-Wochen-Kalender
 
-Ohne zusÃ¤tzliche Chart-Bibliothek werden alle Diagramme mit normalen React-Native-Views
+Ohne zusätzliche Chart-Bibliothek werden alle Diagramme mit normalen React-Native-Views
 gerendert.
 
 Echte Daten:
@@ -226,13 +226,13 @@ Echte Daten:
 - neue Mitglieder
 - Kurse
 - Kursanmeldungen
-- KapazitÃ¤ten
+- Kapazitäten
 - daraus berechnete Belegung
 
 Entwicklungs-/Vorschaudaten:
 
 - offene Rechnungen
-- StoÃŸzeiten
+- Stoßzeiten
 - No-show-Rate
 - Austritte
 - Teile des historischen Vergleichs
@@ -244,25 +244,25 @@ Relevante Dateien:
 
 ## 9. Admin-Verwaltung
 
-Der frÃ¼here Kachel-Dashboard-Screen wurde durch die in der V1 spezifizierte
+Der frühere Kachel-Dashboard-Screen wurde durch die in der V1 spezifizierte
 Verwaltungsansicht ersetzt.
 
 Enthalten:
 
-- Suchfeld fÃ¼r Mitglieder und Personal
+- Suchfeld für Mitglieder und Personal
 - echte Mitglieder- und Personalliste
 - Rollenanzeige
 - Gesamtanzahl der Profile
-- Link zur vollstÃ¤ndigen Personenliste
-- Ãœbersicht `GestiÃ³n de roles`
-- Bereiche fÃ¼r:
+- Link zur vollständigen Personenliste
+- Übersicht `Gestión de roles`
+- Bereiche für:
   - Studio-Profil
   - Mitgliedschaften und Preise
   - Zahlungen und Rechnungen
   - Stornierungsrichtlinie
   - Benachrichtigungen
-  - Ã–ffnungszeiten
-- Entwicklungsbereich fÃ¼r Impersonation
+  - Öffnungszeiten
+- Entwicklungsbereich für Impersonation
 
 Die Einstellungszeilen zeigen derzeit einen Hinweisdialog. Es wurden keine neuen
 Backend-Einstellungen oder Datenbanktabellen angelegt.
@@ -280,11 +280,11 @@ Relevante Dateien:
 Die bestehende echte Freigabelogik wurde erhalten und visuell auf Admin V1 umgestellt.
 
 - echte ausstehende Profile aus Supabase
-- Freigeben Ã¼ber die vorhandene RPC-Funktion `review_user`
-- Ablehnen Ã¼ber dieselbe geschÃ¼tzte RPC-Funktion
-- spanische BestÃ¤tigungsdialoge
+- Freigeben über die vorhandene RPC-Funktion `review_user`
+- Ablehnen über dieselbe geschützte RPC-Funktion
+- spanische Bestätigungsdialoge
 - Pull-to-refresh
-- Skeleton- und LeerzustÃ¤nde
+- Skeleton- und Leerzustände
 
 Datei:
 
@@ -292,7 +292,7 @@ Datei:
 
 ### Buchungsanfragen
 
-FÃ¼r Buchungsanfragen existiert noch keine Datenquelle im aktuellen Schema. Deshalb
+Für Buchungsanfragen existiert noch keine Datenquelle im aktuellen Schema. Deshalb
 werden in der Entwicklung zwei Vorschaukarten angezeigt.
 
 - spanisches UI
@@ -308,7 +308,7 @@ Dateien:
 
 ## 11. Datenbank und Backend
 
-WÃ¤hrend der Admin-V1-Umsetzung wurde das Datenbankschema nicht verÃ¤ndert.
+Während der Admin-V1-Umsetzung wurde das Datenbankschema nicht verändert.
 
 Vorhandene und verwendete Tabellen:
 
@@ -319,13 +319,13 @@ Vorhandene und verwendete Tabellen:
 Noch nicht im Schema vorhanden:
 
 - Kurskategorien
-- wÃ¶chentliche Wiederholungen
+- wöchentliche Wiederholungen
 - Wochentage
-- RÃ¤ume
+- Räume
 - Preise
 - Wartelisten
 - Buchungsfreigabe pro Kurs
-- VerÃ¶ffentlichungs-/Entwurfsstatus
+- Veröffentlichungs-/Entwurfsstatus
 - Buchungsanfragen
 - Rechnungen und Zahlungen
 - No-show-Daten
@@ -337,7 +337,7 @@ Die vorhandenen Rollen bleiben:
 - `trainer`
 - `customer`
 
-## 12. Neue AbhÃ¤ngigkeit
+## 12. Neue Abhängigkeit
 
 Installiert wurde:
 
@@ -345,62 +345,62 @@ Installiert wurde:
 @expo/vector-icons
 ```
 
-Das Paket wird fÃ¼r Feather- und MaterialCommunityIcons verwendet und ist mit Expo Go
+Das Paket wird für Feather- und MaterialCommunityIcons verwendet und ist mit Expo Go
 kompatibel.
 
-GeÃ¤nderte Dateien:
+Geänderte Dateien:
 
 - `package.json`
 - `package-lock.json`
 
-## 13. Technische PrÃ¼fungen
+## 13. Technische Prüfungen
 
-Erfolgreich durchgefÃ¼hrt:
+Erfolgreich durchgeführt:
 
 - TypeScript: `tsc --noEmit`
 - Expo Doctor: `18/18 checks passed`
-- vollstÃ¤ndiger iOS-Export
+- vollständiger iOS-Export
 - iOS-Bundle mit 1437 Modulen
-- Expo Router und neue Routen erfolgreich gebÃ¼ndelt
-- Feather- und MaterialCommunityIcons erfolgreich gebÃ¼ndelt
+- Expo Router und neue Routen erfolgreich gebündelt
+- Feather- und MaterialCommunityIcons erfolgreich gebündelt
 - `git diff --check` ohne Whitespace-Fehler
 
 Der automatische Lint-Lauf konnte nicht eingerichtet werden, weil im Projekt noch keine
-ESLint-Konfiguration existiert und Expo dafÃ¼r einen Netzabruf starten wollte.
+ESLint-Konfiguration existiert und Expo dafür einen Netzabruf starten wollte.
 
 Ein optionaler statischer Web-Export scheitert weiterhin an der bestehenden
-Supabase-/AsyncStorage-Initialisierung wÃ¤hrend des serverseitigen Renderings
+Supabase-/AsyncStorage-Initialisierung während des serverseitigen Renderings
 (`window is not defined`). Das betrifft Expo Go auf iOS nicht.
 
 ## 14. Expo-Go-Verbindungsdiagnose vom 26. Juli 2026
 
 Beim QR-Code-Test wurde festgestellt:
 
-- der gestartete Metro-Prozess antwortete zunÃ¤chst nicht auf HTTP-Anfragen
-- kurz danach war der Metro-Prozess vollstÃ¤ndig beendet
-- anschlieÃŸend lauschte kein Prozess mehr auf Port `8081`
+- der gestartete Metro-Prozess antwortete zunächst nicht auf HTTP-Anfragen
+- kurz danach war der Metro-Prozess vollständig beendet
+- anschließend lauschte kein Prozess mehr auf Port `8081`
 - der alte QR-Code konnte deshalb nicht mehr funktionieren
 - der PC verwendet die lokale WLAN-Adresse `192.168.0.134`
-- das WLAN `vodafoneAA407R` ist in Windows als `Ã–ffentlich` eingestuft
-- es wurde keine aktive eingehende Firewall-Freigabe fÃ¼r Node.js gefunden
+- das WLAN `vodafoneAA407R` ist in Windows als `Öffentlich` eingestuft
+- es wurde keine aktive eingehende Firewall-Freigabe für Node.js gefunden
 
-Empfohlener Start Ã¼ber einen Tunnel:
+Empfohlener Start über einen Tunnel:
 
 ```powershell
 npx expo start --clear --tunnel
 ```
 
-Alternativ Ã¼ber LAN:
+Alternativ über LAN:
 
 ```powershell
 npx expo start --clear --lan
 ```
 
-FÃ¼r LAN mÃ¼ssen PC und iPhone im selben WLAN sein, das Windows-Netzwerk sollte auf
-`Privat` stehen, Node.js muss durch die Firewall erreichbar sein und Expo Go benÃ¶tigt
-auf dem iPhone die Berechtigung fÃ¼r das lokale Netzwerk.
+Für LAN müssen PC und iPhone im selben WLAN sein, das Windows-Netzwerk sollte auf
+`Privat` stehen, Node.js muss durch die Firewall erreichbar sein und Expo Go benötigt
+auf dem iPhone die Berechtigung für das lokale Netzwerk.
 
-Der jeweils neue QR-Code ist nur gÃ¼ltig, solange der dazugehÃ¶rige Metro-Prozess lÃ¤uft.
+Der jeweils neue QR-Code ist nur gültig, solange der dazugehörige Metro-Prozess läuft.
 
 ## 15. Aktueller Testablauf
 
@@ -414,8 +414,8 @@ Danach:
 1. warten, bis im Terminal `Metro waiting on ...` erscheint
 2. den neu erzeugten QR-Code mit dem iPhone scannen
 3. als Esther beziehungsweise als freigegebener Owner anmelden
-4. kontrollieren, dass `Home`, `Clases`, `MÃ©tricas` und `Admin` sichtbar sind
-5. unter `Admin â†’ Desarrollo` die Impersonation testen
+4. kontrollieren, dass `Home`, `Clases`, `Métricas` und `Admin` sichtbar sind
+5. unter `Admin → Desarrollo` die Impersonation testen
 
 ## 16. Bekannte offene Punkte
 
@@ -442,17 +442,17 @@ Danach:
   vier Wochen nach dem Originaltermin. Ein kompatibler freier Termin darf daher auch vor dem
   urspruenglichen Termin liegen, solange er beim Auswaehlen noch nicht begonnen hat.
 
-- Soll der Trainerkalender ausschlieÃŸlich bestÃ¤tigte, bevorstehende Personal-Training-Termine
+- Soll der Trainerkalender ausschließlich bestätigte, bevorstehende Personal-Training-Termine
   anzeigen oder auch abgeschlossene und abgesagte Termine? Falls weitere Status angezeigt werden
   sollen: Wie sollen sie visuell unterschieden werden und wie lange sollen sie im Kalender sichtbar
   bleiben?
 
-- VorlÃ¤ufige Annahme: Owner und zustÃ¤ndiger Kurstrainer dÃ¼rfen jeden passenden Kunden der Filiale
-  in einen Gruppenkurs aufnehmen; die persÃ¶nliche Trainerzuweisung Ã¼ber `assigned_trainer_id` ist
-  davon unabhÃ¤ngig. Die fachliche Entscheidung kann spÃ¤ter nochmals geprÃ¼ft werden.
+- Vorläufige Annahme: Owner und zuständiger Kurstrainer dürfen jeden passenden Kunden der Filiale
+  in einen Gruppenkurs aufnehmen; die persönliche Trainerzuweisung über `assigned_trainer_id` ist
+  davon unabhängig. Die fachliche Entscheidung kann später nochmals geprüft werden.
 - Buchungsanfragen sind weiterhin Entwicklungsdaten.
 - Einige Metriken sind Vorschaudaten.
-- Neue V1-Kurse werden nur lokal auf dem GerÃ¤t gespeichert.
+- Neue V1-Kurse werden nur lokal auf dem Gerät gespeichert.
 - Die Admin-Einstellungen sind noch nicht mit Backend-Daten verbunden.
-- Die V1-Ã„nderungen sind noch nicht als eigener Git-Commit gespeichert.
-- Der optionale Web-Static-Export benÃ¶tigt eine separate Korrektur.
+- Die V1-Änderungen sind noch nicht als eigener Git-Commit gespeichert.
+- Der optionale Web-Static-Export benötigt eine separate Korrektur.
