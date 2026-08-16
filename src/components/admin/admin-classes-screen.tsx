@@ -41,6 +41,7 @@ type CourseCardModel = {
   title: string;
   trainer: string;
   schedule: string;
+  repetition: Course['repetition'] | null;
   nextSession: string | null;
   level: string | null;
   weekdays: string[];
@@ -48,6 +49,8 @@ type CourseCardModel = {
   hasOccurrence: boolean;
   capacity: number;
   taken: number;
+  regularCapacity: number;
+  regularTaken: number;
   sessionCount: number;
   searchTerms: string[];
 };
@@ -58,6 +61,7 @@ export function AdminClassesScreen() {
   const {
     courses,
     courseOccurrences,
+    enrollments,
     groupCourseCustomerMatches,
     personalTrainingServices,
     personalTrainingSessions,
@@ -109,9 +113,10 @@ export function AdminClassesScreen() {
           course.repetition === 'weekly'
             ? formatWeeklySchedule(course.weekdays, course.start_time, course.end_time)
             : formatSingleSchedule(course.start_date, course.end_date),
+        repetition: course.repetition,
         nextSession:
           course.repetition === 'weekly' && nextOccurrence
-            ? formatSingleSchedule(nextOccurrence.start_at, nextOccurrence.end_at)
+            ? formatDate(nextOccurrence.start_at)
             : null,
         level: course.level,
         weekdays:
@@ -124,6 +129,11 @@ export function AdminClassesScreen() {
         hasOccurrence: Boolean(nextOccurrence),
         capacity: nextOccurrence?.capacity ?? course.max_participants ?? 0,
         taken: nextOccurrence?.confirmed_count ?? 0,
+        regularCapacity: course.max_participants ?? nextOccurrence?.capacity ?? 0,
+        regularTaken: enrollments.filter(
+          (enrollment) =>
+            enrollment.course_id === course.id && enrollment.status === 'confirmed'
+        ).length,
         sessionCount: courseOccurrences.filter(
           (occurrence) => occurrence.course_id === course.id
         ).length,
@@ -151,6 +161,7 @@ export function AdminClassesScreen() {
         title: service.title,
         trainer: trainerLabel,
         schedule: 'Horarios coordinados mediante solicitudes',
+        repetition: null,
         nextSession: nextSession
           ? formatSingleSchedule(nextSession.start_at, nextSession.end_at)
           : null,
@@ -160,6 +171,8 @@ export function AdminClassesScreen() {
         hasOccurrence: serviceSessions.length > 0,
         capacity: 0,
         taken: 0,
+        regularCapacity: 0,
+        regularTaken: 0,
         sessionCount: serviceSessions.length,
         searchTerms: [
           service.title,
@@ -176,6 +189,7 @@ export function AdminClassesScreen() {
   }, [
     courseOccurrences,
     courses,
+    enrollments,
     groupCourseCustomerMatches,
     personalTrainingServices,
     personalTrainingSessions,
@@ -377,7 +391,8 @@ export function AdminClassesScreen() {
                     </Text>
                     {course.nextSession ? (
                       <Text style={styles.nextSession} numberOfLines={2}>
-                        Próxima sesión: {course.nextSession}
+                        Próxima sesión: {course.nextSession} · {course.taken}/{course.capacity}{' '}
+                        plazas
                       </Text>
                     ) : null}
                   </View>
@@ -395,7 +410,22 @@ export function AdminClassesScreen() {
                       : `${course.sessionCount} sesiones programadas en las próximas 4 semanas`}
                   </Text>
                 ) : course.active && course.hasOccurrence ? (
-                  <ProgressBar capacity={course.capacity} taken={course.taken} />
+                  <View style={styles.occupancyList}>
+                    {course.repetition === 'weekly' ? (
+                      <View>
+                        <Text style={styles.occupancyLabel}>Inscritos habituales</Text>
+                        <ProgressBar
+                          capacity={course.regularCapacity}
+                          taken={course.regularTaken}
+                        />
+                      </View>
+                    ) : (
+                      <View>
+                        <Text style={styles.occupancyLabel}>Ocupación</Text>
+                        <ProgressBar capacity={course.capacity} taken={course.taken} />
+                      </View>
+                    )}
+                  </View>
                 ) : course.active ? (
                   <Text style={styles.unpublished}>Sin próximas sesiones</Text>
                 ) : (
@@ -496,11 +526,7 @@ function formatSingleSchedule(startValue: string | null, endValue: string | null
 
   const start = new Date(startValue);
   const end = endValue ? new Date(endValue) : null;
-  const date = [
-    String(start.getDate()).padStart(2, '0'),
-    String(start.getMonth() + 1).padStart(2, '0'),
-    start.getFullYear(),
-  ].join('.');
+  const date = formatDate(startValue);
   const weekday = new Intl.DateTimeFormat('es-ES', { weekday: 'long' }).format(start);
   const startTime = start.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   const endTime = end
@@ -508,6 +534,15 @@ function formatSingleSchedule(startValue: string | null, endValue: string | null
     : null;
 
   return `${date} · ${weekday} · ${startTime}${endTime ? `–${endTime}` : ''}`;
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  return [
+    String(date.getDate()).padStart(2, '0'),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    date.getFullYear(),
+  ].join('.');
 }
 
 const styles = StyleSheet.create({
@@ -586,6 +621,15 @@ const styles = StyleSheet.create({
   },
   draftCard: {
     opacity: 0.65,
+  },
+  occupancyList: {
+    gap: 12,
+  },
+  occupancyLabel: {
+    color: adminColors.textSecondary,
+    fontSize: 10,
+    fontWeight: '500',
+    marginBottom: 6,
   },
   unpublished: {
     ...adminType.secondary,

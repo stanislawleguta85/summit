@@ -248,6 +248,9 @@ Dieses Dokument protokolliert die bisher gemeinsam durchgefuehrten manuellen und
 77. **Wochenkurswechsel bis zur Ersatzbuchung praktisch getestet**
     Ergebnis: Bestanden. Bei Erikas woechentlichem Gruppenkurs wurde nur die konkrete Montagssitzung freigegeben; die dauerhafte Einschreibung und die folgenden Wochen blieben erhalten. Nach dem Veroeffentlichen eines kompatiblen Dienstagkurses mit demselben Level konnte Erika den Ersatztermin waehlen. Anschliessend erschien sie beim richtigen Ersatztermin, waehrend ihr Platz im urspruenglichen Termin frei war.
 
+78. **Wochenkursbelegung und Teilnehmerwechsel praktisch geprueft**
+    Ergebnis: Bestanden. Die Kurskarte trennt dauerhafte Einschreibungen von der Belegung des naechsten konkreten Termins; dessen Datum und Belegung stehen gemeinsam in der Zeile `Proxima sesion`. Beim Wechsel zwischen den Terminen zeigt die Teilnehmerliste einen Ladeplatzhalter statt kurzzeitig einen falschen Leerzustand. Schnell aufeinanderfolgende Wechsel koennen keine veraltete Teilnehmerantwort mehr einblenden.
+
 ## Noch nicht als vollstaendig getestet markiert
 
 Die folgenden Punkte gehoeren bewusst nicht zu den bestandenen End-to-End-Tests:

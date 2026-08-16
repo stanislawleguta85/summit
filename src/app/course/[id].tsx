@@ -1,6 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
 import { type Href, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -50,6 +50,7 @@ export default function CourseDetailScreen() {
   const [occurrences, setOccurrences] = useState<ManageableCourseOccurrence[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [sessionClients, setSessionClients] = useState<CourseSessionClient[]>([]);
+  const [sessionClientsLoading, setSessionClientsLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -58,6 +59,7 @@ export default function CourseDetailScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [courseEditable, setCourseEditable] = useState(false);
+  const sessionClientsRequestId = useRef(0);
 
   const canManage = hasPermission('courses', 'assign_clients');
   const canEditCourse =
@@ -135,9 +137,6 @@ export default function CourseDetailScreen() {
     (occurrence) => occurrence.session_id === selectedSessionId
   );
   const participants = sessionClients;
-  const confirmedCount = participants.filter(
-    (client) => client.booking_status === 'confirmed'
-  ).length;
   const availableClients = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('es-ES');
     return clients.filter((client) => {
@@ -174,20 +173,29 @@ export default function CourseDetailScreen() {
   const selectOccurrence = async (occurrence: ManageableCourseOccurrence) => {
     if (occurrence.session_id === selectedSessionId) return;
 
+    const requestId = sessionClientsRequestId.current + 1;
+    sessionClientsRequestId.current = requestId;
     setSelectedSessionId(occurrence.session_id);
     setSessionClients([]);
+    setSessionClientsLoading(true);
     try {
       const { data, error: sessionClientsError } = await supabase.rpc(
         'get_course_session_clients',
         { target_session_id: occurrence.session_id }
       );
       if (sessionClientsError) throw sessionClientsError;
+      if (requestId !== sessionClientsRequestId.current) return;
       setSessionClients((data ?? []) as CourseSessionClient[]);
     } catch (sessionClientsError: any) {
+      if (requestId !== sessionClientsRequestId.current) return;
       Alert.alert(
         'No se pudieron cargar los participantes',
         sessionClientsError.message || 'Inténtalo de nuevo.'
       );
+    } finally {
+      if (requestId === sessionClientsRequestId.current) {
+        setSessionClientsLoading(false);
+      }
     }
   };
 
@@ -293,7 +301,10 @@ export default function CourseDetailScreen() {
               </View>
               {selectedOccurrence ? (
                 <View style={styles.progress}>
-                  <ProgressBar capacity={selectedOccurrence.capacity} taken={confirmedCount} />
+                  <ProgressBar
+                    capacity={selectedOccurrence.capacity}
+                    taken={selectedOccurrence.confirmed_count}
+                  />
                 </View>
               ) : (
                 <Text style={styles.noOccurrences}>No hay próximas sesiones programadas.</Text>
@@ -363,10 +374,19 @@ export default function CourseDetailScreen() {
                   <Text style={styles.addButtonText}>Añadir clientes</Text>
                 </Pressable>
               }
-              title={`Participantes de la sesión · ${participants.length}`}
+              title={
+                sessionClientsLoading
+                  ? 'Participantes de la sesión'
+                  : `Participantes de la sesión · ${participants.length}`
+              }
             />
 
-            {participants.length === 0 ? (
+            {sessionClientsLoading ? (
+              <View style={styles.list}>
+                <SkeletonBlock height={72} />
+                <SkeletonBlock height={72} />
+              </View>
+            ) : participants.length === 0 ? (
               <EmptyState
                 actionLabel="Añadir clientes"
                 message={
