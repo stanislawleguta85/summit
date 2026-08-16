@@ -215,9 +215,23 @@ export function SearchInput({
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={adminColors.textFaint}
+        returnKeyType="search"
         style={styles.searchInput}
         value={value}
       />
+      <Pressable
+        accessibilityLabel="Borrar búsqueda"
+        accessibilityRole="button"
+        disabled={!value}
+        hitSlop={6}
+        onPress={() => onChangeText('')}
+        style={({ pressed }) => [
+          styles.searchClear,
+          !value && styles.searchClearHidden,
+          pressed && styles.pressed,
+        ]}>
+        <Feather color={adminColors.iconDefault} name="x" size={16} />
+      </Pressable>
     </View>
   );
 }
@@ -496,6 +510,15 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     paddingVertical: 9,
+  },
+  searchClear: {
+    alignItems: 'center',
+    height: 28,
+    justifyContent: 'center',
+    width: 28,
+  },
+  searchClearHidden: {
+    opacity: 0,
   },
   skeleton: {
     backgroundColor: adminColors.bgCard,

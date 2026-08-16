@@ -242,6 +242,9 @@ Dieses Dokument protokolliert die bisher gemeinsam durchgefuehrten manuellen und
 75. **Kundensuche und uebernommener Individualfilter praktisch getestet**
     Ergebnis: Bestanden. Die Suche nach einem Kundennamen liess die passenden Karten in `Clases` sichtbar, ohne sie automatisch zu oeffnen. Nach dem manuellen Oeffnen von `Entrenamiento individual` wurde derselbe Suchbegriff uebernommen und die Detailseite zeigte ausschliesslich die passenden Sessions.
 
+76. **Suchfelder mit Schnell-Loeschbutton praktisch getestet**
+    Ergebnis: Bestanden. Die gemeinsame Suchkomponente zeigt bei vorhandener Eingabe rechts ein `X`, das den gesamten Suchbegriff mit einem Tippen entfernt, ohne die Breite des Feldes zu veraendern.
+
 ## Noch nicht als vollstaendig getestet markiert
 
 Die folgenden Punkte gehoeren bewusst nicht zu den bestandenen End-to-End-Tests:
