@@ -20,9 +20,9 @@ Umgesetzt:
    anzeigen, zum Beispiel `Miercoles, 05.08.2026 - 3/6 plazas`.
 2. Beim Oeffnen einer Sitzung ausschliesslich deren bestaetigte `bookings` als Teilnehmerliste
    anzeigen.
-3. Technisch vorbereitet: Die praktische App-Pruefung muss noch bestaetigen, dass nach `Cambiar`
-   die urspruengliche Buchung nur beim betroffenen Datum verschwindet und die angenommene
-   Ersatzbuchung beim richtigen Termin erscheint.
+3. Praktisch bestaetigt: Nach `Cambiar` verschwindet die urspruengliche Buchung nur beim
+   betroffenen Datum; die dauerhafte Einschreibung bleibt erhalten und die angenommene
+   Ersatzbuchung erscheint beim richtigen konkreten Termin.
 
 Neu vorbereitet:
 

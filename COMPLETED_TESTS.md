@@ -245,6 +245,9 @@ Dieses Dokument protokolliert die bisher gemeinsam durchgefuehrten manuellen und
 76. **Suchfelder mit Schnell-Loeschbutton praktisch getestet**
     Ergebnis: Bestanden. Die gemeinsame Suchkomponente zeigt bei vorhandener Eingabe rechts ein `X`, das den gesamten Suchbegriff mit einem Tippen entfernt, ohne die Breite des Feldes zu veraendern.
 
+77. **Wochenkurswechsel bis zur Ersatzbuchung praktisch getestet**
+    Ergebnis: Bestanden. Bei Erikas woechentlichem Gruppenkurs wurde nur die konkrete Montagssitzung freigegeben; die dauerhafte Einschreibung und die folgenden Wochen blieben erhalten. Nach dem Veroeffentlichen eines kompatiblen Dienstagkurses mit demselben Level konnte Erika den Ersatztermin waehlen. Anschliessend erschien sie beim richtigen Ersatztermin, waehrend ihr Platz im urspruenglichen Termin frei war.
+
 ## Noch nicht als vollstaendig getestet markiert
 
 Die folgenden Punkte gehoeren bewusst nicht zu den bestandenen End-to-End-Tests:
@@ -272,7 +275,6 @@ Die folgenden Punkte gehoeren bewusst nicht zu den bestandenen End-to-End-Tests:
 - Dieselbe Kundenkonfiguration aus dem Tab `Clientes` als zugewiesener Trainer oeffnen
 - Stamm-, Vertrags- und interne Kundendaten auf der Detailseite bearbeiten und neu laden
 - Freien Gruppentermin vor dem Originaltermin nach Migration `20260821` anzeigen und buchen
-- Wochenkurs pruefen: Die urspruengliche Buchung verschwindet nur am konkreten Datum und eine angenommene Ersatzbuchung erscheint in genau dieser Sitzung
 - Als Kunde, Trainer und Owner jeweils das eigene Profil oeffnen; ein Profilfoto im Kreis verschieben, zoomen und speichern
 - Profilfoto auf iOS und Android neu laden und vor dem Teilnehmernamen im Trainerkalender pruefen
 - Eigene Stammdaten als Kunde, Trainer und Owner speichern und nach erneutem Login kontrollieren
