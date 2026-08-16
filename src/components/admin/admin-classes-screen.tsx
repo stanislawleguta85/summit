@@ -49,6 +49,7 @@ type CourseCardModel = {
   capacity: number;
   taken: number;
   sessionCount: number;
+  searchTerms: string[];
 };
 
 export function AdminClassesScreen() {
@@ -57,6 +58,7 @@ export function AdminClassesScreen() {
   const {
     courses,
     courseOccurrences,
+    groupCourseCustomerMatches,
     personalTrainingServices,
     personalTrainingSessions,
     profiles,
@@ -75,11 +77,22 @@ export function AdminClassesScreen() {
     useState<AvailabilityFilter>('Todos');
 
   const courseCards = useMemo<CourseCardModel[]>(() => {
+    const customerNamesByCourse = new Map<string, string[]>();
+    groupCourseCustomerMatches.forEach((match) => {
+      if (!match.customer_name) return;
+      const names = customerNamesByCourse.get(match.course_id) ?? [];
+      names.push(match.customer_name);
+      customerNamesByCourse.set(match.course_id, names);
+    });
+
     const groupCards = [...courses]
       .filter((course) => course.format === 'group')
       .sort(compareCourses)
       .map<CourseCardModel>((course) => {
       const trainer = profiles.find((profile) => profile.user_id === course.trainer_id);
+      const trainerName =
+        [trainer?.first_name, trainer?.last_name].filter(Boolean).join(' ') ||
+        'Sin entrenador';
       const nextOccurrence = courseOccurrences.find(
         (occurrence) => occurrence.course_id === course.id
       );
@@ -91,9 +104,7 @@ export function AdminClassesScreen() {
           : `/course/${course.id}`) as Href,
         type: 'Grupo',
         title: course.level ? `${course.title} · Nivel ${course.level.toLowerCase()}` : course.title,
-        trainer:
-          [trainer?.first_name, trainer?.last_name].filter(Boolean).join(' ') ||
-          'Sin entrenador',
+        trainer: trainerName,
         schedule:
           course.repetition === 'weekly'
             ? formatWeeklySchedule(course.weekdays, course.start_time, course.end_time)
@@ -116,6 +127,7 @@ export function AdminClassesScreen() {
         sessionCount: courseOccurrences.filter(
           (occurrence) => occurrence.course_id === course.id
         ).length,
+        searchTerms: [course.title, trainerName, ...(customerNamesByCourse.get(course.id) ?? [])],
       };
     });
 
@@ -125,18 +137,19 @@ export function AdminClassesScreen() {
       );
       const nextSession = serviceSessions[0];
       const trainerCount = new Set(serviceSessions.map((session) => session.trainer_id)).size;
+      const trainerLabel =
+        trainerCount === 1
+          ? nextSession?.trainer_name || 'Sin entrenador'
+          : trainerCount > 1
+            ? `${trainerCount} entrenadores`
+            : 'Según solicitud';
 
       return {
         id: `individual-${service.id}`,
         href: `/personal-training-service/${service.id}` as Href,
         type: 'Individual',
         title: service.title,
-        trainer:
-          trainerCount === 1
-            ? nextSession?.trainer_name || 'Sin entrenador'
-            : trainerCount > 1
-              ? `${trainerCount} entrenadores`
-              : 'Según solicitud',
+        trainer: trainerLabel,
         schedule: 'Horarios coordinados mediante solicitudes',
         nextSession: nextSession
           ? formatSingleSchedule(nextSession.start_at, nextSession.end_at)
@@ -148,16 +161,34 @@ export function AdminClassesScreen() {
         capacity: 0,
         taken: 0,
         sessionCount: serviceSessions.length,
+        searchTerms: [
+          service.title,
+          trainerLabel,
+          ...serviceSessions.flatMap((session) => [
+            session.customer_name ?? '',
+            session.trainer_name ?? '',
+          ]),
+        ],
       };
     });
 
     return [...groupCards, ...individualCards];
-  }, [courseOccurrences, courses, personalTrainingServices, personalTrainingSessions, profiles]);
+  }, [
+    courseOccurrences,
+    courses,
+    groupCourseCustomerMatches,
+    personalTrainingServices,
+    personalTrainingSessions,
+    profiles,
+  ]);
 
   const filteredCourses = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase('es-ES');
+    const normalizedQuery = normalizeSearchValue(query);
     return courseCards.filter((course) => {
-      if (normalizedQuery && !course.title.toLocaleLowerCase('es-ES').includes(normalizedQuery)) {
+      if (
+        normalizedQuery &&
+        !course.searchTerms.some((term) => normalizeSearchValue(term).includes(normalizedQuery))
+      ) {
         return false;
       }
       if (typeFilter !== 'Todos' && course.type !== typeFilter) return false;
@@ -181,6 +212,15 @@ export function AdminClassesScreen() {
 
   const handleRefresh = async () => {
     await reload();
+  };
+
+  const openCourse = (course: CourseCardModel) => {
+    const activeQuery = query.trim();
+    if (course.type === 'Individual' && activeQuery) {
+      router.push(`${course.href}?q=${encodeURIComponent(activeQuery)}` as Href);
+      return;
+    }
+    router.push(course.href);
   };
 
   return (
@@ -210,7 +250,7 @@ export function AdminClassesScreen() {
         <Text style={styles.filterLabel}>CURSO</Text>
         <SearchInput
           onChangeText={setQuery}
-          placeholder="Buscar curso"
+          placeholder="Buscar curso, cliente o entrenador"
           value={query}
         />
 
@@ -318,7 +358,7 @@ export function AdminClassesScreen() {
           {filteredCourses.map((course) => (
             <Pressable
               key={course.id}
-              onPress={() => router.push(course.href)}
+              onPress={() => openCourse(course)}
               style={({ pressed }) => pressed && styles.pressed}>
               <AdminCard
                 muted={!course.active}
@@ -372,6 +412,14 @@ export function AdminClassesScreen() {
 
 function formatTime(value: string | null) {
   return value ? value.slice(0, 5) : 'Sin horario';
+}
+
+function normalizeSearchValue(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLocaleLowerCase('es-ES');
 }
 
 function getWeekdayCode(value: string) {

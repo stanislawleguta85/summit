@@ -10,6 +10,7 @@ import {
   type CourseSession,
   type CustomerCategoryLevel,
   type ManageableCourseOccurrence,
+  type ManageableGroupCourseCustomerMatch,
   type ManageablePersonalTrainingSession,
   type PersonalTrainingService,
   type UserRole,
@@ -30,6 +31,9 @@ export function useAdminData() {
   const [sessions, setSessions] = useState<CourseSession[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [courseOccurrences, setCourseOccurrences] = useState<ManageableCourseOccurrence[]>([]);
+  const [groupCourseCustomerMatches, setGroupCourseCustomerMatches] = useState<
+    ManageableGroupCourseCustomerMatch[]
+  >([]);
   const [personalTrainingServices, setPersonalTrainingServices] = useState<
     PersonalTrainingService[]
   >([]);
@@ -86,6 +90,7 @@ export function useAdminData() {
           sessionResult,
           bookingResult,
           courseOccurrenceResult,
+          groupCourseCustomerMatchResult,
           personalTrainingServiceResult,
           personalTrainingSessionResult,
           categoryLevelResult,
@@ -104,6 +109,7 @@ export function useAdminData() {
             .select('*')
             .eq('status', 'confirmed'),
           supabase.rpc('get_manageable_group_course_occurrences'),
+          supabase.rpc('get_manageable_group_course_customer_matches'),
           supabase
             .from('personal_training_services')
             .select('*')
@@ -128,6 +134,7 @@ export function useAdminData() {
         if (sessionResult.error) throw sessionResult.error;
         if (bookingResult.error) throw bookingResult.error;
         if (courseOccurrenceResult.error) throw courseOccurrenceResult.error;
+        if (groupCourseCustomerMatchResult.error) throw groupCourseCustomerMatchResult.error;
         if (personalTrainingServiceResult.error) throw personalTrainingServiceResult.error;
         if (personalTrainingSessionResult.error) throw personalTrainingSessionResult.error;
         if (categoryLevelResult.error) throw categoryLevelResult.error;
@@ -142,6 +149,9 @@ export function useAdminData() {
         setBookings((bookingResult.data ?? []) as Booking[]);
         setCourseOccurrences(
           (courseOccurrenceResult.data ?? []) as ManageableCourseOccurrence[]
+        );
+        setGroupCourseCustomerMatches(
+          (groupCourseCustomerMatchResult.data ?? []) as ManageableGroupCourseCustomerMatch[]
         );
         setPersonalTrainingServices(
           (personalTrainingServiceResult.data ?? []) as PersonalTrainingService[]
@@ -179,6 +189,7 @@ export function useAdminData() {
     sessions,
     bookings,
     courseOccurrences,
+    groupCourseCustomerMatches,
     personalTrainingServices,
     personalTrainingSessions,
     categoryLevels,

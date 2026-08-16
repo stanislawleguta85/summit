@@ -36,8 +36,18 @@ Die Migrationen `20260825_dated_group_course_occupancy.sql` bis
 `20260829_own_master_data.sql` wurden gegen die verlinkte Remote-Datenbank ausgefuehrt
 und mit den separaten Verification-SQLs bestaetigt.
 
-Noch praktisch zu bestaetigen sind die datumsbezogene Gruppenanzeige, die kombinierten
-Clases-Filter und der Individual-Einstieg in der App.
+Praktisch bestaetigt sind die datumsbezogene Gruppenanzeige, die kombinierten Clases-Filter
+und der Individual-Einstieg mit den konkreten Sessions der kommenden vier Wochen.
+
+Die Suche in `Clases` beruecksichtigt jetzt Kurs-, Kunden- und Trainernamen. Bei Gruppenkursen
+bleiben alle Kurskarten sichtbar, in deren kommenden konkreten Terminen der Kunde bestaetigt
+gebucht ist. Dadurch koennen bei mehreren Trainingstagen mehrere Treffer gleichzeitig erscheinen;
+geoeffnet wird ein Kurs erst nach dem Antippen seiner Karte. Bei Individualterminen werden Kunde
+und Trainer aus den konkreten Sessions der kommenden vier Wochen durchsucht. Die Migration
+`20260830_group_course_customer_search.sql` wurde remote ausgefuehrt und separat verifiziert.
+Beim manuellen Oeffnen des Individualangebots wird der aktive Suchbegriff an die Detailseite
+uebergeben und filtert dort die Sessions nach Kunde oder Trainer. Die Kartenfilterung ohne
+automatisches Oeffnen sowie die uebernommene Individualsuche wurden praktisch bestaetigt.
 
 Fuer Benutzer-Profilfotos sind Bildauswahl, runder Ausschnitt, Verschieben/Zoomen, Upload
 sowie die Anzeige vor dem Teilnehmernamen auf einem echten iOS- und Android-Geraet zu testen.

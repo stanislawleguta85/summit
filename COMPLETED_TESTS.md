@@ -233,6 +233,15 @@ Dieses Dokument protokolliert die bisher gemeinsam durchgefuehrten manuellen und
 72. **Remote-Migrationen 20260827 bis 20260829 ausgefuehrt und verifiziert**
     Ergebnis: Bestanden. Die Migrationen fuer das RLS-Ausfuehrungsrecht des Individualangebots, Profilfotos und eigene Stammdaten wurden gegen die verlinkte Supabase-Remote-Datenbank ausgefuehrt. Die separaten Verification-SQLs `20260827_verify_personal_training_service_policy_execute.sql`, `20260828_verify_customer_profile_photos.sql` und `20260829_verify_own_master_data.sql` lieferten jeweils ausschliesslich `true`-Pruefwerte.
 
+73. **Clases-Filter, konkrete Gruppenbelegung und Individualangebot praktisch getestet**
+    Ergebnis: Bestanden. Als berechtigter Benutzer wurden Typ, Level, Wochentag, Verfuegbarkeit und Kurssuche einzeln sowie kombiniert geprueft. Die Detailansicht eines Gruppenkurses zeigte den richtigen konkreten Termin und die zur Belegung passende Teilnehmerzahl. `Entrenamiento individual` erschien genau einmal; die Detailansicht zeigte die terminierten Sessions der kommenden vier Wochen mit Datum, Uhrzeit, Kunde und Trainer.
+
+74. **Kundennamensuche in Clases technisch umgesetzt und abgesichert**
+    Ergebnis: Bestanden. Kurskarten sind ueber Kurs-, Kunden- und Trainernamen akzentunabhaengig filterbar. Gruppenkunden werden ausschliesslich aus bestaetigten Buchungen konkreter Termine der kommenden vier Wochen geladen; die bestehende Kartenliste wird gefiltert und kein Treffer automatisch geoeffnet. Beim manuellen Oeffnen des Individualangebots wird der aktive Suchbegriff an die Detailseite uebergeben und dort auf Kunden- und Trainernamen angewendet. Die Remote-Funktion und ihre separate Verification-SQL bestaetigten Existenz und Zugriff fuer `authenticated` sowie den fehlenden Zugriff fuer `anon` jeweils mit `true`. `npx tsc --noEmit` wurde ohne Fehler abgeschlossen.
+
+75. **Kundensuche und uebernommener Individualfilter praktisch getestet**
+    Ergebnis: Bestanden. Die Suche nach einem Kundennamen liess die passenden Karten in `Clases` sichtbar, ohne sie automatisch zu oeffnen. Nach dem manuellen Oeffnen von `Entrenamiento individual` wurde derselbe Suchbegriff uebernommen und die Detailseite zeigte ausschliesslich die passenden Sessions.
+
 ## Noch nicht als vollstaendig getestet markiert
 
 Die folgenden Punkte gehoeren bewusst nicht zu den bestandenen End-to-End-Tests:
@@ -261,8 +270,6 @@ Die folgenden Punkte gehoeren bewusst nicht zu den bestandenen End-to-End-Tests:
 - Stamm-, Vertrags- und interne Kundendaten auf der Detailseite bearbeiten und neu laden
 - Freien Gruppentermin vor dem Originaltermin nach Migration `20260821` anzeigen und buchen
 - Wochenkurs pruefen: Die urspruengliche Buchung verschwindet nur am konkreten Datum und eine angenommene Ersatzbuchung erscheint in genau dieser Sitzung
-- Clases-Filter in Kombination pruefen: Kursname, Gruppe/Individual, Level, Gruppen-Wochentag und verfuegbar/ausgebucht
-- Individualangebot einmalig in Clases oeffnen und konkrete Sessions mit richtigem Kunden und Trainer pruefen
 - Als Kunde, Trainer und Owner jeweils das eigene Profil oeffnen; ein Profilfoto im Kreis verschieben, zoomen und speichern
 - Profilfoto auf iOS und Android neu laden und vor dem Teilnehmernamen im Trainerkalender pruefen
 - Eigene Stammdaten als Kunde, Trainer und Owner speichern und nach erneutem Login kontrollieren

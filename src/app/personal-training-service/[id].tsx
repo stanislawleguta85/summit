@@ -20,7 +20,7 @@ import {
 
 export default function PersonalTrainingServiceScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, q } = useLocalSearchParams<{ id: string; q?: string | string[] }>();
   const { hasPermission } = useAuth();
   const [service, setService] = useState<PersonalTrainingService | null>(null);
   const [sessions, setSessions] = useState<ManageablePersonalTrainingSession[]>([]);
@@ -28,6 +28,19 @@ export default function PersonalTrainingServiceScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const canReadSessions = hasPermission('sessions', 'read');
+  const searchQuery = (Array.isArray(q) ? q[0] : q)?.trim() ?? '';
+  const normalizedQuery = normalizeSearchValue(searchQuery);
+  const serviceMatchesQuery = Boolean(
+    normalizedQuery && service && normalizeSearchValue(service.title).includes(normalizedQuery)
+  );
+  const filteredSessions =
+    normalizedQuery && !serviceMatchesQuery
+      ? sessions.filter((session) =>
+          [session.customer_name, session.trainer_name].some(
+            (name) => name && normalizeSearchValue(name).includes(normalizedQuery)
+          )
+        )
+      : sessions;
 
   const load = useCallback(
     async (asRefresh = false) => {
@@ -138,15 +151,25 @@ export default function PersonalTrainingServiceScreen() {
             </View>
           </AdminCard>
 
-          <SectionHeading title={`Próximas sesiones · ${sessions.length}`} />
-          {sessions.length === 0 ? (
+          <SectionHeading
+            title={
+              normalizedQuery && !serviceMatchesQuery
+                ? `Resultados para “${searchQuery}” · ${filteredSessions.length}`
+                : `Próximas sesiones · ${filteredSessions.length}`
+            }
+          />
+          {filteredSessions.length === 0 ? (
             <EmptyState
-              message="Las citas confirmadas aparecerán aquí con cliente y entrenador."
-              title="No hay sesiones programadas"
+              message={
+                normalizedQuery
+                  ? `No hay sesiones que coincidan con “${searchQuery}”.`
+                  : 'Las citas confirmadas aparecerán aquí con cliente y entrenador.'
+              }
+              title={normalizedQuery ? 'Sin resultados' : 'No hay sesiones programadas'}
             />
           ) : (
             <View style={styles.list}>
-              {sessions.map((session) => (
+              {filteredSessions.map((session) => (
                 <AdminCard key={session.session_id}>
                   <View style={styles.sessionHeader}>
                     <View style={styles.dateIcon}>
@@ -192,6 +215,14 @@ export default function PersonalTrainingServiceScreen() {
 
 function formatDay(value: string) {
   return String(new Date(value).getDate()).padStart(2, '0');
+}
+
+function normalizeSearchValue(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLocaleLowerCase('es-ES');
 }
 
 function formatMonth(value: string) {

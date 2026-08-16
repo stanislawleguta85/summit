@@ -296,6 +296,14 @@ export type ManageableCourseOccurrence = {
   waitlisted_count: number;
 };
 
+export type ManageableGroupCourseCustomerMatch = {
+  course_id: string;
+  session_id: string;
+  customer_id: string;
+  customer_name: string | null;
+  start_at: string;
+};
+
 export type CourseSessionClient = {
   booking_id: string;
   user_id: string;
